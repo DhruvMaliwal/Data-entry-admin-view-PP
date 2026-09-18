@@ -185,7 +185,6 @@
     <h4>Add New House</h4>
     <input type="text" id="modalHouseId" placeholder="House ID (e.g. H101)">
     <input type="text" id="modalHouseName" placeholder="House Name">
-    <input type="text" id="modalHouseAddr" placeholder="Address (optional)">
     <div id="modalMsg"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
@@ -367,7 +366,7 @@
   function confirmAddHouse() {
     var id = document.getElementById('modalHouseId').value.trim();
     var name = document.getElementById('modalHouseName').value.trim();
-    var addr = document.getElementById('modalHouseAddr').value.trim();
+    var addr = '';
     if (!id || !name) {
       document.getElementById('modalMsg').innerHTML = '<div class="alert alert-warning">House ID and Name are required.</div>';
       return;

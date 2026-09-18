@@ -86,44 +86,50 @@ function addHousehold(name) {
 // removeHousehold — removes a household + all its entries and data rows
 // ---------------------------------------------------------------------------
 function removeHousehold(houseId) {
-  if (!houseId) return { success: false, message: 'No House ID provided.' };
+  try {
+    if (!houseId) return { success: false, message: 'No House ID provided.' };
+    houseId = String(houseId).trim();
 
-  var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
+    var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
 
-  // Remove from Households
-  var hs = ss.getSheetByName(HOUSEHOLDS_SHEET);
-  if (hs) {
-    var data = hs.getDataRange().getValues();
-    for (var i = data.length - 1; i >= 1; i--) {
-      if (String(data[i][0]).trim() === houseId) hs.deleteRow(i + 1);
-    }
-  }
-
-  // Collect entry IDs belonging to this house, then delete rows in Entries
-  var entryIds = [];
-  var es = ss.getSheetByName(ENTRIES_SHEET);
-  if (es) {
-    var edata = es.getDataRange().getValues();
-    for (var j = edata.length - 1; j >= 1; j--) {
-      if (String(edata[j][1]).trim() === houseId) {
-        entryIds.push(String(edata[j][0]).trim());
-        es.deleteRow(j + 1);
+    // Remove from Households
+    var hs = ss.getSheetByName(HOUSEHOLDS_SHEET);
+    if (hs && hs.getLastRow() > 1) {
+      var data = hs.getRange(2, 1, hs.getLastRow() - 1, 1).getValues();
+      for (var i = data.length - 1; i >= 0; i--) {
+        if (String(data[i][0]).trim() === houseId) hs.deleteRow(i + 2);
       }
     }
-  }
 
-  // Delete entry data rows for those entry IDs
-  if (entryIds.length > 0) {
-    var ds = ss.getSheetByName(ENTRY_DATA_SHEET);
-    if (ds && ds.getLastRow() > 1) {
-      var ddata = ds.getDataRange().getValues();
-      for (var k = ddata.length - 1; k >= 1; k--) {
-        if (entryIds.indexOf(String(ddata[k][0]).trim()) !== -1) ds.deleteRow(k + 1);
+    // Collect entry IDs belonging to this house, delete rows in Entries
+    var entryIds = [];
+    var es = ss.getSheetByName(ENTRIES_SHEET);
+    if (es && es.getLastRow() > 1) {
+      var edata = es.getRange(2, 1, es.getLastRow() - 1, 2).getValues();
+      for (var j = edata.length - 1; j >= 0; j--) {
+        if (String(edata[j][1]).trim() === houseId) {
+          entryIds.push(String(edata[j][0]).trim());
+          es.deleteRow(j + 2);
+        }
       }
     }
-  }
 
-  return { success: true, message: 'House removed.' };
+    // Delete entry data rows for those entry IDs
+    if (entryIds.length > 0) {
+      var ds = ss.getSheetByName(ENTRY_DATA_SHEET);
+      if (ds && ds.getLastRow() > 1) {
+        var ddata = ds.getRange(2, 1, ds.getLastRow() - 1, 1).getValues();
+        for (var k = ddata.length - 1; k >= 0; k--) {
+          if (entryIds.indexOf(String(ddata[k][0]).trim()) !== -1) ds.deleteRow(k + 2);
+        }
+      }
+    }
+
+    SpreadsheetApp.flush();
+    return { success: true, message: 'House removed.' };
+  } catch (e) {
+    return { success: false, message: 'Error: ' + e.message };
+  }
 }
 
 // ---------------------------------------------------------------------------

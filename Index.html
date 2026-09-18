@@ -78,6 +78,31 @@
     .btn-ghost:hover { color: var(--primary); background: var(--primary-light); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    /* ==================== Search ==================== */
+    .search-wrap {
+      position: relative; margin-bottom: 1.25rem;
+      display: flex; align-items: center;
+    }
+    .search-icon {
+      position: absolute; left: 1rem; font-size: 0.9rem;
+      color: var(--muted); pointer-events: none;
+    }
+    .search-input {
+      width: 100%; padding: 0.75rem 2.5rem 0.75rem 2.5rem;
+      border: 1.5px solid var(--border-strong); border-radius: 12px;
+      font-family: inherit; font-size: 0.95rem;
+      outline: none; transition: border-color 0.15s; background: var(--card);
+    }
+    .search-input:focus { border-color: var(--primary); }
+    .search-clear {
+      position: absolute; right: 0.6rem;
+      width: 28px; height: 28px; border-radius: 50%;
+      border: none; background: var(--bg-alt); color: var(--muted);
+      cursor: pointer; font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .search-clear:hover { background: var(--danger-light); color: var(--danger); }
+
     /* ==================== Screen 1: Households ==================== */
     .page-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
     .page-title { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; }
@@ -357,6 +382,13 @@
       <button class="btn btn-primary" onclick="openAddModal()">+ Add House</button>
     </div>
 
+    <div class="search-wrap" id="searchWrap" style="display:none;">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="searchInput"
+             placeholder="Search houses…" oninput="renderHouseholds()">
+      <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display:none;">×</button>
+    </div>
+
     <div id="householdContainer"></div>
   </div>
 
@@ -515,6 +547,13 @@
 
   function renderHouseholds() {
     var container = document.getElementById('householdContainer');
+    var searchWrap = document.getElementById('searchWrap');
+    var searchInput = document.getElementById('searchInput');
+    var searchClear = document.getElementById('searchClear');
+
+    // Show search bar only when there are enough houses to warrant it
+    searchWrap.style.display = state.households.length >= 4 ? '' : 'none';
+
     if (!state.households.length) {
       container.innerHTML = '<div class="empty-state">' +
         '<div class="icon">🏘️</div>' +
@@ -524,20 +563,91 @@
         '</div>';
       return;
     }
+
+    var query = (searchInput.value || '').trim();
+    searchClear.style.display = query ? '' : 'none';
+
+    var filtered = query
+      ? state.households.map(function(h) { return { h: h, score: fuzzyScore(h.name, query) }; })
+          .filter(function(r) { return r.score > 0; })
+          .sort(function(a, b) { return b.score - a.score; })
+          .map(function(r) { return r.h; })
+      : state.households;
+
+    if (query && !filtered.length) {
+      container.innerHTML = '<div class="empty-state" style="padding:2.5rem 1rem;">' +
+        '<div class="icon">🔍</div>' +
+        '<div class="title">No matches for "' + escapeHtml(query) + '"</div>' +
+        '<div class="text">Try a different spelling or add a new house.</div>' +
+        '<button class="btn btn-primary" onclick="openAddModal()">+ Add "' + escapeHtml(query) + '"</button>' +
+        '</div>';
+      return;
+    }
+
     var html = '<div class="house-grid">';
-    state.households.forEach(function(h) {
+    filtered.forEach(function(h) {
       html += '<div class="house-card" onclick="openHouse(\'' + escapeAttr(h.id) + '\')">' +
         '<button class="remove-btn" onclick="event.stopPropagation();openRemoveModal(\'' + escapeAttr(h.id) + '\',\'' + escapeAttr(h.name) + '\')" title="Remove">×</button>' +
         '<div class="avatar">' + escapeHtml(getInitials(h.name)) + '</div>' +
         '<div class="info">' +
-          '<div class="name">' + escapeHtml(h.name) + '</div>' +
+          '<div class="name">' + highlightMatch(h.name, query) + '</div>' +
           '<div class="date">Added ' + escapeHtml(h.createdAt || '—') + '</div>' +
         '</div>' +
       '</div>';
     });
-    html += '<div class="add-house-card" onclick="openAddModal()">+ Add New House</div>';
+    if (!query) html += '<div class="add-house-card" onclick="openAddModal()">+ Add New House</div>';
     html += '</div>';
     container.innerHTML = html;
+  }
+
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    renderHouseholds();
+  }
+
+  // Fuzzy score: 0 = no match. Higher = better.
+  // Combines: substring match (heavy weight), sequential character match,
+  // and word-start bonuses. Case-insensitive.
+  function fuzzyScore(text, query) {
+    if (!query) return 1;
+    var t = String(text || '').toLowerCase();
+    var q = String(query).toLowerCase();
+
+    // Exact prefix / substring gets a big boost
+    if (t === q) return 1000;
+    if (t.indexOf(q) === 0) return 500;
+    if (t.indexOf(q) !== -1) return 300 - (t.indexOf(q) * 2);
+
+    // Fuzzy character-by-character
+    var ti = 0, qi = 0, score = 0, streak = 0, prevMatched = false;
+    while (ti < t.length && qi < q.length) {
+      if (t[ti] === q[qi]) {
+        streak++;
+        score += 10 + streak * 2;
+        if (ti === 0 || t[ti - 1] === ' ' || t[ti - 1] === '&') score += 15;
+        prevMatched = true;
+        qi++;
+      } else {
+        streak = 0;
+        if (prevMatched) score -= 2;
+        prevMatched = false;
+      }
+      ti++;
+    }
+    // Must match all query chars
+    if (qi < q.length) return 0;
+    return score;
+  }
+
+  function highlightMatch(text, query) {
+    if (!query) return escapeHtml(text);
+    var t = String(text || ''); var q = String(query);
+    var idx = t.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return escapeHtml(t);
+    return escapeHtml(t.substring(0, idx)) +
+      '<mark style="background:var(--primary-light);color:var(--primary-dark);padding:0 2px;border-radius:3px;">' +
+      escapeHtml(t.substring(idx, idx + q.length)) + '</mark>' +
+      escapeHtml(t.substring(idx + q.length));
   }
 
   function renderHouseholdsError(msg) {

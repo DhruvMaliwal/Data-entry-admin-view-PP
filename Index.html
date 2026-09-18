@@ -6,34 +6,167 @@
   <title>Property Data Entry Portal</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background: #f5f6fa; }
-    .main-card { max-width: 800px; margin: 2rem auto; }
+    :root {
+      --bg: #f0ede6;
+      --card-bg: #ffffff;
+      --border: #d4cfbf;
+      --primary: #3d6b5e;
+      --primary-light: #e8f0ec;
+      --danger: #c0392b;
+      --danger-light: #fce8e6;
+      --text: #2c2c2c;
+      --muted: #7a7a7a;
+      --avatar-bg: #e8e4dc;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); margin: 0; }
+
+    .portal-container { max-width: 520px; margin: 3rem auto; padding: 0 1rem; }
+
+    .card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    .section-label { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* Custom dropdown */
+    .dropdown-wrapper { position: relative; }
+    .dropdown-trigger {
+      width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border);
+      border-radius: 12px; background: var(--card-bg); cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.95rem; color: var(--muted); transition: border-color 0.2s;
+    }
+    .dropdown-trigger:hover, .dropdown-trigger.open { border-color: var(--primary); }
+    .dropdown-trigger .selected-text { color: var(--text); }
+    .dropdown-trigger .arrow { font-size: 0.7rem; transition: transform 0.2s; }
+    .dropdown-trigger.open .arrow { transform: rotate(180deg); }
+
+    .dropdown-menu-custom {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: var(--card-bg); border: 2px solid var(--primary);
+      border-radius: 12px; z-index: 100; overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .dropdown-menu-custom.open { display: block; }
+
+    .dropdown-search {
+      width: 100%; border: none; border-bottom: 1px solid #eee;
+      padding: 0.75rem 1rem; font-size: 0.9rem; outline: none;
+      background: #f9f8f5;
+    }
+    .dropdown-search::placeholder { color: var(--muted); }
+
+    .dropdown-list { max-height: 220px; overflow-y: auto; padding: 0.25rem 0; }
+
+    .dropdown-item-custom {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6rem 1rem; cursor: pointer; transition: background 0.15s;
+    }
+    .dropdown-item-custom:hover { background: var(--primary-light); }
+
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+    }
+    .avatar.house { background: var(--avatar-bg); color: var(--primary); }
+    .avatar.add { background: var(--primary-light); color: var(--primary); font-size: 1.2rem; }
+    .avatar.remove { background: var(--danger-light); color: var(--danger); font-size: 1.2rem; }
+
+    .dropdown-item-custom .item-name { font-size: 0.95rem; font-weight: 500; }
+
+    .dropdown-divider { height: 1px; background: #eee; margin: 0.25rem 0; }
+
+    /* Upload area */
+    .upload-section { margin-top: 1.5rem; display: none; }
+    .upload-section.visible { display: block; }
+
+    .file-drop {
+      border: 2px dashed var(--border); border-radius: 12px;
+      padding: 2rem; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .file-drop:hover, .file-drop.dragover { border-color: var(--primary); background: var(--primary-light); }
+    .file-drop .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .file-drop .label { font-size: 0.9rem; color: var(--muted); }
+    .file-drop .filename { font-size: 0.9rem; color: var(--primary); font-weight: 600; margin-top: 0.5rem; }
+
+    .btn-submit {
+      width: 100%; padding: 0.75rem; border: none; border-radius: 12px;
+      background: var(--primary); color: #fff; font-size: 1rem; font-weight: 600;
+      cursor: pointer; margin-top: 1rem; transition: opacity 0.2s;
+    }
+    .btn-submit:hover { opacity: 0.9; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Add house modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4); z-index: 200;
+      justify-content: center; align-items: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--card-bg); border-radius: 16px; padding: 2rem;
+      width: 90%; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .modal-box h4 { margin: 0 0 1.5rem; }
+    .modal-box input {
+      width: 100%; padding: 0.65rem 0.75rem; border: 2px solid var(--border);
+      border-radius: 10px; font-size: 0.9rem; margin-bottom: 0.75rem; outline: none;
+    }
+    .modal-box input:focus { border-color: var(--primary); }
+    .modal-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .modal-actions button { flex: 1; padding: 0.6rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+    .btn-cancel { background: #eee; border: none; color: var(--text); }
+    .btn-confirm { background: var(--primary); border: none; color: #fff; }
+
+    /* Result / Dashboard */
+    .result-area { margin-top: 1.5rem; display: none; }
+    .result-area.visible { display: block; }
+
+    .stat-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .stat-card {
+      flex: 1; min-width: 100px; background: var(--primary-light); border-radius: 12px;
+      padding: 1rem; text-align: center;
+    }
+    .stat-card .val { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+    .stat-card .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+
+    .data-table-wrap { max-height: 350px; overflow: auto; border: 1px solid #eee; border-radius: 10px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .data-table th { background: #f5f4f0; position: sticky; top: 0; padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; border-bottom: 2px solid #ddd; }
+    .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #eee; }
+    .data-table tr:hover td { background: #faf9f6; }
+
+    .alert { padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.9rem; margin-top: 0.75rem; }
+    .alert-success { background: var(--primary-light); color: var(--primary); }
+    .alert-danger { background: var(--danger-light); color: var(--danger); }
+    .alert-warning { background: #fff8e1; color: #8d6e00; }
+
+    /* Spinner */
     #overlay {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5); z-index: 9999;
+      background: rgba(0,0,0,0.4); z-index: 300;
       justify-content: center; align-items: center;
     }
     #overlay.active { display: flex; }
     .spinner-box {
-      background: #fff; border-radius: 12px; padding: 2rem 3rem;
+      background: var(--card-bg); border-radius: 16px; padding: 2rem 3rem;
       text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.2);
     }
-    /* Step indicators */
-    .step { display: none; }
-    .step.active { display: block; }
-    /* Dashboard table */
-    .dashboard-table { font-size: 0.9rem; }
-    .dashboard-table th { background: #f0f0f0; position: sticky; top: 0; }
-    .table-scroll { max-height: 400px; overflow-y: auto; }
-    .house-card {
-      cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s;
+    .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Synced badge */
+    .sync-badge {
+      position: fixed; bottom: 1rem; left: 1rem;
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.8rem; color: var(--muted);
     }
-    .house-card:hover, .house-card.selected {
-      border-color: #0d6efd; box-shadow: 0 0 0 2px rgba(13,110,253,0.25);
-    }
-    .stat-card { text-align: center; padding: 1rem; }
-    .stat-card .stat-value { font-size: 1.8rem; font-weight: 700; color: #0d6efd; }
-    .stat-card .stat-label { font-size: 0.85rem; color: #6c757d; }
+    .sync-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; }
   </style>
 </head>
 <body>
@@ -41,338 +174,376 @@
 <!-- Spinner overlay -->
 <div id="overlay">
   <div class="spinner-box">
-    <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;">
-      <span class="visually-hidden">Processing…</span>
-    </div>
-    <p class="mb-0 fw-semibold" id="overlayText">Loading…</p>
+    <div class="spinner"></div>
+    <p id="overlayText" style="margin:0;font-weight:600;">Loading…</p>
   </div>
 </div>
 
-<div class="main-card">
-
-  <!-- ====================================================================
-       STEP 1: Select a Household
-       ==================================================================== -->
-  <div id="step1" class="step active">
-    <div class="card shadow-sm">
-      <div class="card-body p-4">
-        <h3 class="card-title mb-1">Property Data Entry Portal</h3>
-        <p class="text-muted mb-4">Select a household to upload data for, or create a new one.</p>
-
-        <div id="householdList" class="mb-3">
-          <!-- Populated dynamically -->
-        </div>
-
-        <div id="noHouseholds" class="text-center text-muted py-4" style="display:none;">
-          <p class="mb-2">No households yet. Create one to get started.</p>
-        </div>
-
-        <hr>
-
-        <!-- Add new household form -->
-        <div class="mt-3">
-          <h6 class="fw-semibold mb-3">Add New Household</h6>
-          <div class="row g-2">
-            <div class="col-md-3">
-              <input type="text" class="form-control" id="newHouseId" placeholder="House ID (e.g. H101)">
-            </div>
-            <div class="col-md-4">
-              <input type="text" class="form-control" id="newHouseName" placeholder="House Name">
-            </div>
-            <div class="col-md-3">
-              <input type="text" class="form-control" id="newHouseAddr" placeholder="Address">
-            </div>
-            <div class="col-md-2">
-              <button class="btn btn-outline-primary w-100" onclick="addNewHousehold()">Add</button>
-            </div>
-          </div>
-          <div id="addHouseMsg" class="mt-2"></div>
-        </div>
-      </div>
+<!-- Add House Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box">
+    <h4>Add New House</h4>
+    <input type="text" id="modalHouseId" placeholder="House ID (e.g. H101)">
+    <input type="text" id="modalHouseName" placeholder="House Name">
+    <input type="text" id="modalHouseAddr" placeholder="Address (optional)">
+    <div id="modalMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmAddHouse()">Add House</button>
     </div>
   </div>
-
-  <!-- ====================================================================
-       STEP 2: Upload Data File for Selected Household
-       ==================================================================== -->
-  <div id="step2" class="step">
-    <div class="card shadow-sm">
-      <div class="card-body p-4">
-        <button class="btn btn-sm btn-outline-secondary mb-3" onclick="goToStep(1)">&larr; Back to Households</button>
-
-        <h4 class="card-title mb-1">Upload Data Entry</h4>
-        <p class="text-muted mb-3">
-          Uploading for: <strong id="selectedHouseLabel"></strong>
-        </p>
-
-        <div class="mb-3">
-          <label for="dataFile" class="form-label fw-semibold">Data File (.xlsx or .csv)</label>
-          <input class="form-control" type="file" id="dataFile" accept=".xlsx,.xls,.csv" required>
-          <div class="form-text">Upload the data entry spreadsheet for this household.</div>
-        </div>
-
-        <button class="btn btn-primary w-100" id="uploadBtn" onclick="submitDataEntry()">
-          Upload &amp; Process
-        </button>
-
-        <div id="uploadMsg" class="mt-3"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ====================================================================
-       STEP 3: Dashboard — shows parsed data after upload
-       ==================================================================== -->
-  <div id="step3" class="step">
-    <div class="card shadow-sm">
-      <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div>
-            <h4 class="card-title mb-0">Data Entry Dashboard</h4>
-            <p class="text-muted mb-0">
-              <span id="dashHouseId"></span> &middot; <span id="dashDate"></span>
-            </p>
-          </div>
-          <div>
-            <button class="btn btn-sm btn-outline-primary me-2" onclick="goToStep(2)">Upload More</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="goToStep(1)">All Households</button>
-          </div>
-        </div>
-
-        <!-- Summary stats -->
-        <div class="row g-3 mb-4" id="statsRow"></div>
-
-        <!-- Data table -->
-        <div class="table-scroll">
-          <table class="table table-bordered table-striped dashboard-table mb-0">
-            <thead id="dashHeaders"></thead>
-            <tbody id="dashBody"></tbody>
-          </table>
-        </div>
-
-        <div id="dashMsg" class="mt-3"></div>
-      </div>
-    </div>
-  </div>
-
 </div>
+
+<!-- Remove House Modal -->
+<div class="modal-overlay" id="removeModal">
+  <div class="modal-box">
+    <h4>Remove a House</h4>
+    <p style="font-size:0.9rem;color:var(--muted);">Select a house to remove:</p>
+    <div id="removeList"></div>
+    <div id="removeMsg" style="margin-top:0.5rem;"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeRemoveModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="portal-container">
+  <div class="card">
+
+    <!-- House selector -->
+    <div class="section-label"><span style="font-size:1.2rem;">🏠</span> House Name</div>
+
+    <div class="dropdown-wrapper" id="dropdownWrapper">
+      <div class="dropdown-trigger" id="dropdownTrigger" onclick="toggleDropdown()">
+        <span id="triggerText">Select a house…</span>
+        <span class="arrow">▲</span>
+      </div>
+      <div class="dropdown-menu-custom" id="dropdownMenu">
+        <input type="text" class="dropdown-search" id="searchInput"
+               placeholder="Search houses…" oninput="filterHouses()">
+        <div class="dropdown-list" id="dropdownList"></div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item-custom" onclick="openAddModal()">
+          <div class="avatar add">+</div>
+          <div class="item-name" style="color:var(--primary);">Add new house</div>
+        </div>
+        <div class="dropdown-item-custom" onclick="openRemoveModal()">
+          <div class="avatar remove">−</div>
+          <div class="item-name" style="color:var(--danger);">Remove a house</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload section (visible after selecting a house) -->
+    <div class="upload-section" id="uploadSection">
+      <div class="section-label">📄 Upload Data Entry</div>
+      <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click();">
+        <div class="icon">📁</div>
+        <div class="label">Click or drag a <strong>.csv</strong> or <strong>.xlsx</strong> file here</div>
+        <div class="filename" id="fileName"></div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="onFileSelected()">
+      <button class="btn-submit" id="submitBtn" onclick="submitData()" disabled>Upload & Process</button>
+    </div>
+
+    <!-- Result / Dashboard -->
+    <div class="result-area" id="resultArea"></div>
+
+  </div>
+</div>
+
+<div class="sync-badge"><div class="sync-dot"></div> Synced with team</div>
 
 <script>
-  var selectedHouseId = null;
-  var selectedHouseName = '';
+  var households = [];
+  var selectedHouse = null;
+  var dropdownOpen = false;
 
-  // -----------------------------------------------------------------------
-  // On page load, fetch the household list
-  // -----------------------------------------------------------------------
-  window.addEventListener('DOMContentLoaded', function() {
-    loadHouseholds();
+  // Load households on page load
+  window.addEventListener('DOMContentLoaded', function() { loadHouseholds(); });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    var wrapper = document.getElementById('dropdownWrapper');
+    if (!wrapper.contains(e.target) && dropdownOpen) closeDropdown();
   });
 
   // -----------------------------------------------------------------------
-  // Step navigation
+  // Dropdown logic
   // -----------------------------------------------------------------------
-  function goToStep(n) {
-    document.querySelectorAll('.step').forEach(function(el) { el.classList.remove('active'); });
-    document.getElementById('step' + n).classList.add('active');
-    if (n === 1) loadHouseholds();
+  function toggleDropdown() {
+    dropdownOpen ? closeDropdown() : openDropdown();
+  }
+  function openDropdown() {
+    dropdownOpen = true;
+    document.getElementById('dropdownTrigger').classList.add('open');
+    document.getElementById('dropdownMenu').classList.add('open');
+    document.getElementById('searchInput').value = '';
+    filterHouses();
+    setTimeout(function() { document.getElementById('searchInput').focus(); }, 50);
+  }
+  function closeDropdown() {
+    dropdownOpen = false;
+    document.getElementById('dropdownTrigger').classList.remove('open');
+    document.getElementById('dropdownMenu').classList.remove('open');
   }
 
   // -----------------------------------------------------------------------
-  // Load households from the backend and render as selectable cards
+  // Load and render households
   // -----------------------------------------------------------------------
   function loadHouseholds() {
-    showOverlay(true, 'Loading households…');
+    showOverlay(true, 'Loading houses…');
     google.script.run
       .withSuccessHandler(function(list) {
         showOverlay(false);
-        var container = document.getElementById('householdList');
-        var noMsg = document.getElementById('noHouseholds');
-
-        if (!list || list.length === 0) {
-          container.innerHTML = '';
-          noMsg.style.display = 'block';
-          return;
-        }
-        noMsg.style.display = 'none';
-
-        var html = '<div class="row g-2">';
-        list.forEach(function(h) {
-          html += '<div class="col-md-6">' +
-            '<div class="card house-card p-3" onclick="selectHousehold(\'' +
-            escapeAttr(h.id) + '\',\'' + escapeAttr(h.name) + '\')">' +
-            '<div class="fw-semibold">' + escapeHtml(h.id) + ' — ' + escapeHtml(h.name) + '</div>' +
-            '<small class="text-muted">' + escapeHtml(h.address || 'No address') + '</small>' +
-            '</div></div>';
-        });
-        html += '</div>';
-        container.innerHTML = html;
+        households = list || [];
+        renderHouseList(households);
       })
       .withFailureHandler(function(err) {
         showOverlay(false);
-        document.getElementById('householdList').innerHTML =
-          '<div class="alert alert-danger">Failed to load: ' + escapeHtml(err.message) + '</div>';
+        households = [];
+        renderHouseList([]);
       })
       .getHouseholds();
   }
 
-  // -----------------------------------------------------------------------
-  // Select a household and move to Step 2
-  // -----------------------------------------------------------------------
-  function selectHousehold(id, name) {
-    selectedHouseId = id;
-    selectedHouseName = name;
-    document.getElementById('selectedHouseLabel').textContent = id + ' — ' + name;
-    document.getElementById('dataFile').value = '';
-    document.getElementById('uploadMsg').innerHTML = '';
-    goToStep(2);
+  function renderHouseList(list) {
+    var container = document.getElementById('dropdownList');
+    if (!list.length) {
+      container.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--muted);font-size:0.9rem;">No houses yet. Add one below.</div>';
+      return;
+    }
+    var html = '';
+    list.forEach(function(h) {
+      var initials = getInitials(h.name);
+      html += '<div class="dropdown-item-custom house-option" data-name="' + escapeAttr(h.name) + '" onclick="selectHouse(\'' + escapeAttr(h.id) + '\',\'' + escapeAttr(h.name) + '\')">' +
+        '<div class="avatar house">' + escapeHtml(initials) + '</div>' +
+        '<div class="item-name">' + escapeHtml(h.name) + '</div></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  function filterHouses() {
+    var query = document.getElementById('searchInput').value.toLowerCase();
+    var items = document.querySelectorAll('.house-option');
+    items.forEach(function(el) {
+      var name = (el.getAttribute('data-name') || '').toLowerCase();
+      el.style.display = name.indexOf(query) >= 0 ? '' : 'none';
+    });
+  }
+
+  function selectHouse(id, name) {
+    selectedHouse = { id: id, name: name };
+    document.getElementById('triggerText').innerHTML = '<span class="selected-text">' + escapeHtml(name) + '</span>';
+    closeDropdown();
+    document.getElementById('uploadSection').classList.add('visible');
+    document.getElementById('resultArea').classList.remove('visible');
+    document.getElementById('resultArea').innerHTML = '';
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileName').textContent = '';
+    document.getElementById('submitBtn').disabled = true;
+  }
+
+  function getInitials(name) {
+    var parts = name.split(/[\s&]+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
   }
 
   // -----------------------------------------------------------------------
-  // Add a new household
+  // Add house modal
   // -----------------------------------------------------------------------
-  function addNewHousehold() {
-    var id = document.getElementById('newHouseId').value.trim();
-    var name = document.getElementById('newHouseName').value.trim();
-    var addr = document.getElementById('newHouseAddr').value.trim();
-    var msgEl = document.getElementById('addHouseMsg');
-
+  function openAddModal() {
+    closeDropdown();
+    document.getElementById('modalHouseId').value = '';
+    document.getElementById('modalHouseName').value = '';
+    document.getElementById('modalHouseAddr').value = '';
+    document.getElementById('modalMsg').innerHTML = '';
+    document.getElementById('addModal').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('addModal').classList.remove('open');
+  }
+  function confirmAddHouse() {
+    var id = document.getElementById('modalHouseId').value.trim();
+    var name = document.getElementById('modalHouseName').value.trim();
+    var addr = document.getElementById('modalHouseAddr').value.trim();
     if (!id || !name) {
-      msgEl.innerHTML = '<div class="alert alert-warning py-2">House ID and Name are required.</div>';
+      document.getElementById('modalMsg').innerHTML = '<div class="alert alert-warning">House ID and Name are required.</div>';
       return;
     }
-
-    showOverlay(true, 'Adding household…');
+    showOverlay(true, 'Adding house…');
     google.script.run
       .withSuccessHandler(function(result) {
         showOverlay(false);
         if (result.success) {
-          msgEl.innerHTML = '<div class="alert alert-success py-2">' + escapeHtml(result.message) + '</div>';
-          document.getElementById('newHouseId').value = '';
-          document.getElementById('newHouseName').value = '';
-          document.getElementById('newHouseAddr').value = '';
+          closeModal();
           loadHouseholds();
         } else {
-          msgEl.innerHTML = '<div class="alert alert-danger py-2">' + escapeHtml(result.message) + '</div>';
+          document.getElementById('modalMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(result.message) + '</div>';
         }
       })
       .withFailureHandler(function(err) {
         showOverlay(false);
-        msgEl.innerHTML = '<div class="alert alert-danger py-2">' + escapeHtml(err.message) + '</div>';
+        document.getElementById('modalMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>';
       })
       .addHousehold(id, name, addr);
   }
 
   // -----------------------------------------------------------------------
-  // Submit the data entry file
+  // Remove house modal
   // -----------------------------------------------------------------------
-  function submitDataEntry() {
-    var fileInput = document.getElementById('dataFile');
-    if (!fileInput.files.length) {
-      document.getElementById('uploadMsg').innerHTML =
-        '<div class="alert alert-warning">Please select a file.</div>';
-      return;
+  function openRemoveModal() {
+    closeDropdown();
+    var container = document.getElementById('removeList');
+    if (!households.length) {
+      container.innerHTML = '<p style="color:var(--muted);">No houses to remove.</p>';
+    } else {
+      var html = '';
+      households.forEach(function(h) {
+        html += '<div class="dropdown-item-custom" style="border-radius:8px;" onclick="confirmRemoveHouse(\'' + escapeAttr(h.id) + '\',\'' + escapeAttr(h.name) + '\')">' +
+          '<div class="avatar remove" style="font-size:0.8rem;">✕</div>' +
+          '<div class="item-name">' + escapeHtml(h.name) + '</div></div>';
+      });
+      container.innerHTML = html;
     }
+    document.getElementById('removeMsg').innerHTML = '';
+    document.getElementById('removeModal').classList.add('open');
+  }
+  function closeRemoveModal() {
+    document.getElementById('removeModal').classList.remove('open');
+  }
+  function confirmRemoveHouse(id, name) {
+    if (!confirm('Remove "' + name + '"? This only removes it from the household list, not its data entries.')) return;
+    showOverlay(true, 'Removing…');
+    google.script.run
+      .withSuccessHandler(function(result) {
+        showOverlay(false);
+        if (result.success) {
+          if (selectedHouse && selectedHouse.id === id) {
+            selectedHouse = null;
+            document.getElementById('triggerText').textContent = 'Select a house…';
+            document.getElementById('uploadSection').classList.remove('visible');
+          }
+          closeRemoveModal();
+          loadHouseholds();
+        } else {
+          document.getElementById('removeMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(result.message) + '</div>';
+        }
+      })
+      .withFailureHandler(function(err) {
+        showOverlay(false);
+        document.getElementById('removeMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>';
+      })
+      .removeHousehold(id);
+  }
+
+  // -----------------------------------------------------------------------
+  // File handling
+  // -----------------------------------------------------------------------
+  var fileDrop = document.getElementById('fileDrop');
+  fileDrop.addEventListener('dragover', function(e) { e.preventDefault(); fileDrop.classList.add('dragover'); });
+  fileDrop.addEventListener('dragleave', function() { fileDrop.classList.remove('dragover'); });
+  fileDrop.addEventListener('drop', function(e) {
+    e.preventDefault(); fileDrop.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      document.getElementById('fileInput').files = e.dataTransfer.files;
+      onFileSelected();
+    }
+  });
+
+  function onFileSelected() {
+    var file = document.getElementById('fileInput').files[0];
+    if (file) {
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('submitBtn').disabled = false;
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Submit data
+  // -----------------------------------------------------------------------
+  function submitData() {
+    if (!selectedHouse) return;
+    var fileInput = document.getElementById('fileInput');
+    if (!fileInput.files.length) return;
 
     showOverlay(true, 'Processing data file…');
+    document.getElementById('submitBtn').disabled = true;
 
     readFileAsBase64(fileInput.files[0]).then(function(dataFileObj) {
       google.script.run
         .withSuccessHandler(onUploadSuccess)
         .withFailureHandler(onUploadFailure)
-        .processDataEntry(selectedHouseId, dataFileObj);
+        .processDataEntry(selectedHouse.id, dataFileObj);
     }).catch(function(err) {
       showOverlay(false);
-      document.getElementById('uploadMsg').innerHTML =
-        '<div class="alert alert-danger">Failed to read file: ' + escapeHtml(err.message) + '</div>';
+      showAlert('danger', 'Failed to read file: ' + err.message);
+      document.getElementById('submitBtn').disabled = false;
     });
   }
 
-  // -----------------------------------------------------------------------
-  // After successful upload, show the dashboard
-  // -----------------------------------------------------------------------
   function onUploadSuccess(result) {
     showOverlay(false);
+    document.getElementById('submitBtn').disabled = false;
+
     if (!result.success) {
-      document.getElementById('uploadMsg').innerHTML =
-        '<div class="alert alert-danger">' + escapeHtml(result.message) + '</div>';
+      showAlert('danger', result.message);
       return;
     }
-
-    // Populate dashboard
-    document.getElementById('dashHouseId').textContent = result.houseId;
-    document.getElementById('dashDate').textContent = result.uploadDate;
 
     var headers = result.headers;
     var data = result.data;
 
-    // Stats row — total rows + summary of numeric columns
-    var statsHtml = '<div class="col-sm-3"><div class="stat-card card"><div class="stat-value">' +
-      data.length + '</div><div class="stat-label">Rows Uploaded</div></div></div>';
+    // Build stats
+    var statsHtml = '<div class="stat-row">';
+    statsHtml += '<div class="stat-card"><div class="val">' + data.length + '</div><div class="lbl">Rows</div></div>';
 
-    // Detect numeric columns and show sums
-    var numericCols = [];
+    var numCols = [];
     headers.forEach(function(h) {
-      var allNumeric = true;
-      var sum = 0;
+      var sum = 0, ok = true;
       for (var i = 0; i < data.length; i++) {
         var v = parseFloat(String(data[i][h]).replace(/[,$]/g, ''));
-        if (isNaN(v)) { allNumeric = false; break; }
+        if (isNaN(v)) { ok = false; break; }
         sum += v;
       }
-      if (allNumeric && data.length > 0) {
-        numericCols.push({ header: h, sum: sum });
-      }
+      if (ok && data.length > 0) numCols.push({ header: h, sum: sum });
     });
-
-    numericCols.slice(0, 3).forEach(function(col) {
-      var displayVal = col.sum % 1 === 0 ? col.sum.toLocaleString() : col.sum.toLocaleString(undefined, {maximumFractionDigits: 2});
-      statsHtml += '<div class="col-sm-3"><div class="stat-card card">' +
-        '<div class="stat-value">' + displayVal + '</div>' +
-        '<div class="stat-label">Total ' + escapeHtml(col.header) + '</div></div></div>';
+    numCols.slice(0, 3).forEach(function(c) {
+      var v = c.sum % 1 === 0 ? c.sum.toLocaleString() : c.sum.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      statsHtml += '<div class="stat-card"><div class="val">' + v + '</div><div class="lbl">' + escapeHtml(c.header) + '</div></div>';
     });
+    statsHtml += '</div>';
 
-    document.getElementById('statsRow').innerHTML = statsHtml;
-
-    // Table headers
-    var thHtml = '<tr>';
-    thHtml += '<th>#</th>';
-    headers.forEach(function(h) { thHtml += '<th>' + escapeHtml(h) + '</th>'; });
-    thHtml += '</tr>';
-    document.getElementById('dashHeaders').innerHTML = thHtml;
-
-    // Table body
-    var tbHtml = '';
-    data.forEach(function(row, idx) {
-      tbHtml += '<tr><td>' + (idx + 1) + '</td>';
-      headers.forEach(function(h) {
-        tbHtml += '<td>' + escapeHtml(String(row[h] || '')) + '</td>';
-      });
-      tbHtml += '</tr>';
+    // Build table
+    var tableHtml = '<div class="data-table-wrap"><table class="data-table"><thead><tr><th>#</th>';
+    headers.forEach(function(h) { tableHtml += '<th>' + escapeHtml(h) + '</th>'; });
+    tableHtml += '</tr></thead><tbody>';
+    data.forEach(function(row, i) {
+      tableHtml += '<tr><td>' + (i + 1) + '</td>';
+      headers.forEach(function(h) { tableHtml += '<td>' + escapeHtml(String(row[h] || '')) + '</td>'; });
+      tableHtml += '</tr>';
     });
-    document.getElementById('dashBody').innerHTML = tbHtml;
+    tableHtml += '</tbody></table></div>';
 
-    document.getElementById('dashMsg').innerHTML =
-      '<div class="alert alert-success">' + escapeHtml(result.message) + '</div>';
-
-    goToStep(3);
+    var area = document.getElementById('resultArea');
+    area.innerHTML = '<div class="alert alert-success">' + escapeHtml(result.message) + ' — ' + result.uploadDate + '</div>' + statsHtml + tableHtml;
+    area.classList.add('visible');
   }
 
   function onUploadFailure(err) {
     showOverlay(false);
-    document.getElementById('uploadMsg').innerHTML =
-      '<div class="alert alert-danger">Server error: ' + escapeHtml(err.message) + '</div>';
+    document.getElementById('submitBtn').disabled = false;
+    showAlert('danger', 'Server error: ' + err.message);
   }
 
   // -----------------------------------------------------------------------
-  // Utility functions
+  // Utilities
   // -----------------------------------------------------------------------
   function readFileAsBase64(file) {
     return new Promise(function(resolve, reject) {
       var reader = new FileReader();
-      reader.onload = function() {
-        var base64 = reader.result.split(',')[1];
-        resolve({ name: file.name, mimeType: file.type, base64: base64 });
-      };
+      reader.onload = function() { resolve({ name: file.name, mimeType: file.type, base64: reader.result.split(',')[1] }); };
       reader.onerror = function() { reject(reader.error); };
       reader.readAsDataURL(file);
     });
@@ -383,14 +554,20 @@
     document.getElementById('overlay').classList.toggle('active', on);
   }
 
+  function showAlert(type, msg) {
+    var area = document.getElementById('resultArea');
+    area.innerHTML = '<div class="alert alert-' + type + '">' + escapeHtml(msg) + '</div>';
+    area.classList.add('visible');
+  }
+
   function escapeHtml(s) {
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(s));
-    return div.innerHTML;
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
   }
 
   function escapeAttr(s) {
-    return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   }
 </script>
 

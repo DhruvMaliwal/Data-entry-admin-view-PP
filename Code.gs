@@ -78,6 +78,26 @@ function addHousehold(houseId, houseName, address) {
 }
 
 // ---------------------------------------------------------------------------
+// removeHousehold — removes a household from the Households sheet by ID
+// ---------------------------------------------------------------------------
+function removeHousehold(houseId) {
+  if (!houseId) return { success: false, message: 'No House ID provided.' };
+
+  var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
+  var sheet = ss.getSheetByName(HOUSEHOLDS_SHEET);
+  if (!sheet) return { success: false, message: 'Households sheet not found.' };
+
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === houseId.trim()) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Household removed.' };
+    }
+  }
+  return { success: false, message: 'House ID not found.' };
+}
+
+// ---------------------------------------------------------------------------
 // processDataEntry — parses the uploaded file and appends to Data Entries
 // ---------------------------------------------------------------------------
 // Receives:

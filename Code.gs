@@ -2,24 +2,30 @@
 // Property Data Entry Portal — Backend
 // =============================================================================
 // Flow:
-//   1. User lands on the page, sees a list of households from the master sheet
-//   2. User selects a household (or creates a new one)
-//   3. User uploads an Excel/CSV data entry file for that household
-//   4. Backend parses the file, appends rows tagged with the household + today's date
-//   5. Frontend displays a dashboard summary of the uploaded data
+//   1. User lands on the page, sees a list of households (by name only)
+//   2. User creates a new household by name, or selects an existing one
+//   3. On the household page, they see previous entries (with date/time)
+//     and can upload a new data entry sheet
+//   4. Uploading generates a dashboard for that entry; the data is stored
+//     permanently and can be viewed again later
+//
+// Storage in the master spreadsheet:
+//   - "Households" sheet: House ID (auto), Name, Created At
+//   - "Entries"    sheet: Entry ID (auto), House ID, Uploaded At, File Name, Row Count
+//   - "Entry Data" sheet: Entry ID, [dynamic columns from uploaded files]
 // =============================================================================
 
 // ---------------------------------------------------------------------------
-// Configuration — replace these with your actual Google Sheet ID
+// Configuration — replace with your actual Google Sheet ID
 // ---------------------------------------------------------------------------
 const MASTER_SHEET_ID = 'YOUR_SHEET_ID_HERE';
 
-// Sheet names within the master spreadsheet
 const HOUSEHOLDS_SHEET = 'Households';
-const DATA_ENTRIES_SHEET = 'Data Entries';
+const ENTRIES_SHEET = 'Entries';
+const ENTRY_DATA_SHEET = 'Entry Data';
 
 // ---------------------------------------------------------------------------
-// doGet — serves the frontend HTML page
+// doGet — serves the frontend
 // ---------------------------------------------------------------------------
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
@@ -28,233 +34,269 @@ function doGet() {
 }
 
 // ---------------------------------------------------------------------------
-// getHouseholds — returns the list of existing households for the dropdown
-// ---------------------------------------------------------------------------
-// Each household has an ID and display name. Reads from the "Households" sheet.
-// If the sheet doesn't exist yet, it creates one with headers.
+// getHouseholds — returns the list of existing households
 // ---------------------------------------------------------------------------
 function getHouseholds() {
   var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
-  var sheet = getOrCreateSheet(ss, HOUSEHOLDS_SHEET, ['House ID', 'House Name', 'Address', 'Created Date']);
+  var sheet = getOrCreateSheet(ss, HOUSEHOLDS_SHEET, ['House ID', 'Name', 'Created At']);
 
   var lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return []; // only headers, no data
+  if (lastRow <= 1) return [];
 
   var data = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
-  var households = [];
+  var houses = [];
   for (var i = 0; i < data.length; i++) {
     if (data[i][0]) {
-      households.push({
+      houses.push({
         id: String(data[i][0]).trim(),
         name: String(data[i][1]).trim(),
-        address: String(data[i][2]).trim()
+        createdAt: data[i][2] ? formatDateTime(data[i][2]) : ''
       });
     }
   }
-  return households;
+  return houses;
 }
 
 // ---------------------------------------------------------------------------
-// addHousehold — creates a new household entry
+// addHousehold — creates a household with an auto-generated ID
 // ---------------------------------------------------------------------------
-function addHousehold(houseId, houseName, address) {
-  if (!houseId || !houseName) {
-    return { success: false, message: 'House ID and Name are required.' };
+function addHousehold(name) {
+  if (!name || !name.trim()) {
+    return { success: false, message: 'House name is required.' };
   }
+  name = name.trim();
 
   var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
-  var sheet = getOrCreateSheet(ss, HOUSEHOLDS_SHEET, ['House ID', 'House Name', 'Address', 'Created Date']);
+  var sheet = getOrCreateSheet(ss, HOUSEHOLDS_SHEET, ['House ID', 'Name', 'Created At']);
 
-  // Check for duplicate ID
+  // Check for duplicate name (case-insensitive)
   var existing = sheet.getDataRange().getValues();
   for (var i = 1; i < existing.length; i++) {
-    if (String(existing[i][0]).trim() === houseId.trim()) {
-      return { success: false, message: 'House ID "' + houseId + '" already exists.' };
+    if (String(existing[i][1]).trim().toLowerCase() === name.toLowerCase()) {
+      return { success: false, message: 'A house named "' + name + '" already exists.' };
     }
   }
 
-  sheet.appendRow([houseId.trim(), houseName.trim(), (address || '').trim(), new Date()]);
-  return { success: true, message: 'Household "' + houseName + '" added.' };
+  var id = 'H' + Date.now().toString(36).toUpperCase();
+  sheet.appendRow([id, name, new Date()]);
+  return { success: true, message: 'House "' + name + '" created.', house: { id: id, name: name } };
 }
 
 // ---------------------------------------------------------------------------
-// removeHousehold — removes a household from the Households sheet by ID
+// removeHousehold — removes a household + all its entries and data rows
 // ---------------------------------------------------------------------------
 function removeHousehold(houseId) {
   if (!houseId) return { success: false, message: 'No House ID provided.' };
 
   var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
-  var sheet = ss.getSheetByName(HOUSEHOLDS_SHEET);
-  if (!sheet) return { success: false, message: 'Households sheet not found.' };
 
-  var data = sheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === houseId.trim()) {
-      sheet.deleteRow(i + 1);
-      return { success: true, message: 'Household removed.' };
+  // Remove from Households
+  var hs = ss.getSheetByName(HOUSEHOLDS_SHEET);
+  if (hs) {
+    var data = hs.getDataRange().getValues();
+    for (var i = data.length - 1; i >= 1; i--) {
+      if (String(data[i][0]).trim() === houseId) hs.deleteRow(i + 1);
     }
   }
-  return { success: false, message: 'House ID not found.' };
+
+  // Collect entry IDs belonging to this house, then delete rows in Entries
+  var entryIds = [];
+  var es = ss.getSheetByName(ENTRIES_SHEET);
+  if (es) {
+    var edata = es.getDataRange().getValues();
+    for (var j = edata.length - 1; j >= 1; j--) {
+      if (String(edata[j][1]).trim() === houseId) {
+        entryIds.push(String(edata[j][0]).trim());
+        es.deleteRow(j + 1);
+      }
+    }
+  }
+
+  // Delete entry data rows for those entry IDs
+  if (entryIds.length > 0) {
+    var ds = ss.getSheetByName(ENTRY_DATA_SHEET);
+    if (ds && ds.getLastRow() > 1) {
+      var ddata = ds.getDataRange().getValues();
+      for (var k = ddata.length - 1; k >= 1; k--) {
+        if (entryIds.indexOf(String(ddata[k][0]).trim()) !== -1) ds.deleteRow(k + 1);
+      }
+    }
+  }
+
+  return { success: true, message: 'House removed.' };
 }
 
 // ---------------------------------------------------------------------------
-// processDataEntry — parses the uploaded file and appends to Data Entries
+// getEntriesForHouse — returns metadata for all entries of a given house
 // ---------------------------------------------------------------------------
-// Receives:
-//   houseId   — the selected household ID
-//   dataFile  — { name, mimeType, base64 }
-//
-// Every row from the uploaded file gets tagged with:
-//   - House ID (from selection)
-//   - Upload Date (today)
-//   - Original filename
-//
-// Returns: the parsed rows for the frontend dashboard display
+function getEntriesForHouse(houseId) {
+  var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
+  var sheet = ss.getSheetByName(ENTRIES_SHEET);
+  if (!sheet || sheet.getLastRow() <= 1) return [];
+
+  var data = sheet.getDataRange().getValues();
+  var entries = [];
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][1]).trim() === houseId) {
+      entries.push({
+        id: String(data[i][0]).trim(),
+        houseId: String(data[i][1]).trim(),
+        uploadedAt: data[i][2] ? formatDateTime(data[i][2]) : '',
+        uploadedAtRaw: data[i][2] ? new Date(data[i][2]).getTime() : 0,
+        fileName: String(data[i][3] || ''),
+        rowCount: Number(data[i][4]) || 0
+      });
+    }
+  }
+  // Newest first
+  entries.sort(function(a, b) { return b.uploadedAtRaw - a.uploadedAtRaw; });
+  return entries;
+}
+
+// ---------------------------------------------------------------------------
+// getEntryData — returns headers + rows for one entry, for dashboard display
+// ---------------------------------------------------------------------------
+function getEntryData(entryId) {
+  try {
+    var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
+
+    // Find the entry metadata
+    var es = ss.getSheetByName(ENTRIES_SHEET);
+    if (!es) return { success: false, message: 'No entries found.' };
+    var edata = es.getDataRange().getValues();
+    var meta = null;
+    for (var i = 1; i < edata.length; i++) {
+      if (String(edata[i][0]).trim() === entryId) {
+        meta = {
+          id: String(edata[i][0]).trim(),
+          houseId: String(edata[i][1]).trim(),
+          uploadedAt: edata[i][2] ? formatDateTime(edata[i][2]) : '',
+          fileName: String(edata[i][3] || ''),
+          rowCount: Number(edata[i][4]) || 0
+        };
+        break;
+      }
+    }
+    if (!meta) return { success: false, message: 'Entry not found.' };
+
+    // Load data rows for this entry
+    var ds = ss.getSheetByName(ENTRY_DATA_SHEET);
+    if (!ds || ds.getLastRow() <= 1) {
+      return { success: true, meta: meta, headers: [], data: [] };
+    }
+    var ddata = ds.getDataRange().getValues();
+    var allHeaders = ddata[0]; // first column is Entry ID
+    var rowObjs = [];
+    for (var j = 1; j < ddata.length; j++) {
+      if (String(ddata[j][0]).trim() === entryId) {
+        var obj = {};
+        for (var c = 1; c < allHeaders.length; c++) {
+          if (allHeaders[c]) obj[allHeaders[c]] = ddata[j][c];
+        }
+        rowObjs.push(obj);
+      }
+    }
+
+    // Determine which columns have any data for this entry
+    var displayHeaders = [];
+    for (var c = 1; c < allHeaders.length; c++) {
+      if (!allHeaders[c]) continue;
+      var hasData = false;
+      for (var r = 0; r < rowObjs.length; r++) {
+        var v = rowObjs[r][allHeaders[c]];
+        if (v !== '' && v !== null && v !== undefined) { hasData = true; break; }
+      }
+      if (hasData) displayHeaders.push(allHeaders[c]);
+    }
+
+    return { success: true, meta: meta, headers: displayHeaders, data: rowObjs };
+  } catch (e) {
+    return { success: false, message: 'Error: ' + e.message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// processDataEntry — parses uploaded CSV, stores it under a new entry ID,
+// and returns the dashboard-ready data
 // ---------------------------------------------------------------------------
 function processDataEntry(houseId, dataFile) {
   try {
     if (!houseId) return { success: false, message: 'No household selected.' };
-    if (!dataFile) return { success: false, message: 'No data file uploaded.' };
+    if (!dataFile) return { success: false, message: 'No file uploaded.' };
 
-    var rows = parseDataFile(dataFile);
+    var rows = parseCsv(dataFile);
     if (!rows || rows.length === 0) {
       return { success: false, message: 'No data rows found in the uploaded file.' };
     }
 
     var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
-    var today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-
-    // Get the column headers from the uploaded file
     var uploadHeaders = Object.keys(rows[0]);
 
-    // Master headers: House ID, Upload Date, then all columns from the file
-    var masterHeaders = ['House ID', 'Upload Date'].concat(uploadHeaders);
+    // 1) Append to Entries index
+    var es = getOrCreateSheet(ss, ENTRIES_SHEET,
+      ['Entry ID', 'House ID', 'Uploaded At', 'File Name', 'Row Count']);
+    var entryId = 'E' + Date.now().toString(36).toUpperCase();
+    var uploadedAt = new Date();
+    es.appendRow([entryId, houseId, uploadedAt, dataFile.name, rows.length]);
 
-    var sheet = getOrCreateSheet(ss, DATA_ENTRIES_SHEET, masterHeaders);
+    // 2) Append rows to Entry Data (first column = Entry ID, then dynamic columns)
+    var ds = getOrCreateSheet(ss, ENTRY_DATA_SHEET, ['Entry ID']);
+    var existingHeaders = ds.getRange(1, 1, 1, Math.max(1, ds.getLastColumn())).getValues()[0];
 
-    // Read existing headers to ensure column alignment
-    var existingHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-    // Add any new columns from this upload that don't exist yet
+    // Add any new columns that don't exist yet
     for (var h = 0; h < uploadHeaders.length; h++) {
       if (existingHeaders.indexOf(uploadHeaders[h]) === -1) {
         existingHeaders.push(uploadHeaders[h]);
-        sheet.getRange(1, existingHeaders.length).setValue(uploadHeaders[h]);
+        ds.getRange(1, existingHeaders.length).setValue(uploadHeaders[h]).setFontWeight('bold');
       }
     }
 
-    // Build rows aligned to the master header order
+    // Build rows aligned to existingHeaders
     var rowsToAppend = [];
     for (var i = 0; i < rows.length; i++) {
       var row = [];
       for (var c = 0; c < existingHeaders.length; c++) {
         var header = existingHeaders[c];
-        if (header === 'House ID') {
-          row.push(houseId);
-        } else if (header === 'Upload Date') {
-          row.push(today);
-        } else {
-          row.push(rows[i][header] || '');
-        }
+        if (c === 0) row.push(entryId);
+        else row.push(rows[i][header] !== undefined ? rows[i][header] : '');
       }
       rowsToAppend.push(row);
     }
-
     if (rowsToAppend.length > 0) {
-      sheet.getRange(
-        sheet.getLastRow() + 1, 1,
-        rowsToAppend.length, existingHeaders.length
-      ).setValues(rowsToAppend);
+      ds.getRange(ds.getLastRow() + 1, 1, rowsToAppend.length, existingHeaders.length)
+        .setValues(rowsToAppend);
     }
 
     return {
       success: true,
-      message: rowsToAppend.length + ' row(s) added for household ' + houseId + '.',
+      message: rows.length + ' row(s) uploaded.',
+      meta: {
+        id: entryId,
+        houseId: houseId,
+        uploadedAt: formatDateTime(uploadedAt),
+        fileName: dataFile.name,
+        rowCount: rows.length
+      },
       headers: uploadHeaders,
-      data: rows,
-      uploadDate: today,
-      houseId: houseId
+      data: rows
     };
-
   } catch (e) {
     return { success: false, message: 'Error: ' + e.message };
   }
 }
 
 // ---------------------------------------------------------------------------
-// getEntriesForHouse — fetches all data entries for a given household
+// parseCsv — parses CSV blob (Excel is converted to CSV client-side)
 // ---------------------------------------------------------------------------
-// Used by the dashboard to show historical data.
-// ---------------------------------------------------------------------------
-function getEntriesForHouse(houseId) {
-  try {
-    var ss = SpreadsheetApp.openById(MASTER_SHEET_ID);
-    var sheet = ss.getSheetByName(DATA_ENTRIES_SHEET);
-    if (!sheet || sheet.getLastRow() <= 1) {
-      return { success: true, headers: [], data: [], dates: [] };
-    }
-
-    var allData = sheet.getDataRange().getValues();
-    var headers = allData[0];
-    var houseIdCol = headers.indexOf('House ID');
-    var dateCol = headers.indexOf('Upload Date');
-
-    // Filter rows for the selected household
-    var filtered = [];
-    var dates = {};
-    for (var i = 1; i < allData.length; i++) {
-      if (String(allData[i][houseIdCol]).trim() === houseId) {
-        var obj = {};
-        for (var c = 0; c < headers.length; c++) {
-          if (headers[c] !== 'House ID' && headers[c] !== 'Upload Date') {
-            obj[headers[c]] = allData[i][c];
-          }
-        }
-        filtered.push(obj);
-        if (allData[i][dateCol]) {
-          dates[String(allData[i][dateCol])] = true;
-        }
-      }
-    }
-
-    // Column headers excluding House ID and Upload Date
-    var displayHeaders = headers.filter(function(h) {
-      return h !== 'House ID' && h !== 'Upload Date';
-    });
-
-    return {
-      success: true,
-      headers: displayHeaders,
-      data: filtered,
-      dates: Object.keys(dates).sort().reverse()
-    };
-
-  } catch (e) {
-    return { success: false, message: 'Error: ' + e.message };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// parseDataFile — parses the data file (always CSV — Excel is converted
-// to CSV on the client side by SheetJS before being sent here)
-// ---------------------------------------------------------------------------
-function parseDataFile(dataFile) {
+function parseCsv(dataFile) {
   var bytes = Utilities.base64Decode(dataFile.base64);
-  var blob = Utilities.newBlob(bytes, dataFile.mimeType, dataFile.name);
-  return parseCsv(blob);
-}
-
-// ---------------------------------------------------------------------------
-// parseCsv — parses a CSV blob into row objects
-// ---------------------------------------------------------------------------
-function parseCsv(blob) {
+  var blob = Utilities.newBlob(bytes, 'text/csv', dataFile.name);
   var text = blob.getDataAsString();
   var parsed = Utilities.parseCsv(text);
   if (parsed.length < 2) return [];
 
-  var headers = parsed[0].map(function(h) { return h.trim(); });
+  var headers = parsed[0].map(function(h) { return String(h).trim(); });
   var rows = [];
-
   for (var i = 1; i < parsed.length; i++) {
     var obj = {};
     var hasData = false;
@@ -269,14 +311,20 @@ function parseCsv(blob) {
 }
 
 // ---------------------------------------------------------------------------
-// getOrCreateSheet — returns an existing sheet or creates one with headers
+// getOrCreateSheet — returns existing sheet or creates one with headers
 // ---------------------------------------------------------------------------
 function getOrCreateSheet(ss, name, headers) {
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
   }
   return sheet;
+}
+
+// ---------------------------------------------------------------------------
+// formatDateTime — formats a Date in the script's timezone
+// ---------------------------------------------------------------------------
+function formatDateTime(d) {
+  return Utilities.formatDate(new Date(d), Session.getScriptTimeZone(), 'MMM d, yyyy h:mm a');
 }

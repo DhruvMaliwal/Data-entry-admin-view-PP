@@ -4,448 +4,618 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Property Data Entry Portal</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f0ede6;
-      --card-bg: #ffffff;
-      --border: #d4cfbf;
+      --bg: #f5f2ea;
+      --bg-alt: #ede8db;
+      --card: #ffffff;
+      --border: #e0dbcc;
+      --border-strong: #cec7b3;
       --primary: #3d6b5e;
+      --primary-dark: #2d5045;
       --primary-light: #e8f0ec;
+      --accent: #d4a574;
       --danger: #c0392b;
       --danger-light: #fce8e6;
-      --text: #2c2c2c;
-      --muted: #7a7a7a;
+      --text: #1f2320;
+      --muted: #7a7568;
       --avatar-bg: #e8e4dc;
     }
-    * { box-sizing: border-box; }
-    body { background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); margin: 0; }
-
-    .portal-container { max-width: 520px; margin: 3rem auto; padding: 0 1rem; }
-
-    .card {
-      background: var(--card-bg); border: 1px solid var(--border);
-      border-radius: 16px; padding: 2rem; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
     }
 
-    .section-label { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
-
-    /* Custom dropdown */
-    .dropdown-wrapper { position: relative; }
-    .dropdown-trigger {
-      width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border);
-      border-radius: 12px; background: var(--card-bg); cursor: pointer;
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 0.95rem; color: var(--muted); transition: border-color 0.2s;
+    /* ==================== Top bar ==================== */
+    .topbar {
+      background: var(--primary);
+      color: #fff;
+      padding: 1rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-    .dropdown-trigger:hover, .dropdown-trigger.open { border-color: var(--primary); }
-    .dropdown-trigger .selected-text { color: var(--text); }
-    .dropdown-trigger .arrow { font-size: 0.7rem; transition: transform 0.2s; }
-    .dropdown-trigger.open .arrow { transform: rotate(180deg); }
-
-    .dropdown-menu-custom {
-      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-      background: var(--card-bg); border: 2px solid var(--primary);
-      border-radius: 12px; z-index: 100; overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    .topbar .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
+    .topbar .brand-icon {
+      width: 32px; height: 32px; background: rgba(255,255,255,0.15);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
     }
-    .dropdown-menu-custom.open { display: block; }
-
-    .dropdown-search {
-      width: 100%; border: none; border-bottom: 1px solid #eee;
-      padding: 0.75rem 1rem; font-size: 0.9rem; outline: none;
-      background: #f9f8f5;
+    .topbar .sync {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.8rem; opacity: 0.9;
     }
-    .dropdown-search::placeholder { color: var(--muted); }
+    .sync-dot { width: 8px; height: 8px; background: #7dd3a5; border-radius: 50%; box-shadow: 0 0 0 3px rgba(125,211,165,0.3); }
 
-    .dropdown-list { max-height: 220px; overflow-y: auto; padding: 0.25rem 0; }
+    /* ==================== Layout ==================== */
+    .container { max-width: 1080px; margin: 0 auto; padding: 2rem 1.5rem; }
 
-    .dropdown-item-custom {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.6rem 1rem; cursor: pointer; transition: background 0.15s;
+    /* ==================== Screens ==================== */
+    .screen { display: none; animation: fadeIn 0.25s ease; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* ==================== Buttons ==================== */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      border: none; border-radius: 10px; padding: 0.7rem 1.2rem;
+      font-family: inherit; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
     }
-    .dropdown-item-custom:hover { background: var(--primary-light); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: #fff; color: var(--text); border: 1.5px solid var(--border-strong); }
+    .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-danger-outline { background: #fff; color: var(--danger); border: 1.5px solid var(--danger); }
+    .btn-danger-outline:hover { background: var(--danger); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--muted); }
+    .btn-ghost:hover { color: var(--primary); background: var(--primary-light); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .avatar {
-      width: 36px; height: 36px; border-radius: 50%;
+    /* ==================== Screen 1: Households ==================== */
+    .page-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+    .page-title { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.02em; }
+    .page-subtitle { color: var(--muted); font-size: 0.95rem; margin-top: 0.25rem; }
+
+    .house-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .house-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 1.25rem;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; gap: 1rem;
+      position: relative;
+    }
+    .house-card:hover {
+      border-color: var(--primary); transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(61,107,94,0.12);
+    }
+    .house-card .avatar {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: var(--primary-light); color: var(--primary);
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+      font-weight: 700; font-size: 1rem; flex-shrink: 0;
     }
-    .avatar.house { background: var(--avatar-bg); color: var(--primary); }
-    .avatar.add { background: var(--primary-light); color: var(--primary); font-size: 1.2rem; }
-    .avatar.remove { background: var(--danger-light); color: var(--danger); font-size: 1.2rem; }
-
-    .dropdown-item-custom .item-name { font-size: 0.95rem; font-weight: 500; }
-
-    .dropdown-divider { height: 1px; background: #eee; margin: 0.25rem 0; }
-
-    /* Upload area */
-    .upload-section { margin-top: 1.5rem; display: none; }
-    .upload-section.visible { display: block; }
-
-    .file-drop {
-      border: 2px dashed var(--border); border-radius: 12px;
-      padding: 2rem; text-align: center; cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
+    .house-card .info { flex: 1; min-width: 0; }
+    .house-card .name { font-weight: 600; font-size: 1rem; margin-bottom: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .house-card .date { font-size: 0.75rem; color: var(--muted); }
+    .house-card .remove-btn {
+      position: absolute; top: 0.5rem; right: 0.5rem;
+      width: 26px; height: 26px; border-radius: 50%;
+      background: transparent; color: var(--muted); border: none;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; opacity: 0; transition: all 0.15s;
+      font-size: 1rem;
     }
-    .file-drop:hover, .file-drop.dragover { border-color: var(--primary); background: var(--primary-light); }
-    .file-drop .icon { font-size: 2rem; margin-bottom: 0.5rem; }
-    .file-drop .label { font-size: 0.9rem; color: var(--muted); }
-    .file-drop .filename { font-size: 0.9rem; color: var(--primary); font-weight: 600; margin-top: 0.5rem; }
+    .house-card:hover .remove-btn { opacity: 1; }
+    .house-card .remove-btn:hover { background: var(--danger-light); color: var(--danger); }
 
-    .btn-submit {
-      width: 100%; padding: 0.75rem; border: none; border-radius: 12px;
-      background: var(--primary); color: #fff; font-size: 1rem; font-weight: 600;
-      cursor: pointer; margin-top: 1rem; transition: opacity 0.2s;
+    .add-house-card {
+      background: transparent; border: 2px dashed var(--border-strong);
+      border-radius: 14px; padding: 1.25rem;
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      cursor: pointer; color: var(--muted); font-weight: 600;
+      transition: all 0.15s; min-height: 82px;
     }
-    .btn-submit:hover { opacity: 0.9; }
-    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .add-house-card:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
 
-    /* Add house modal */
+    .empty-state { text-align: center; padding: 4rem 1rem; }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+    .empty-state .title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .empty-state .text { color: var(--muted); margin-bottom: 1.5rem; }
+
+    /* ==================== Screen 2: House Detail ==================== */
+    .breadcrumb { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .breadcrumb a { color: var(--muted); text-decoration: none; cursor: pointer; }
+    .breadcrumb a:hover { color: var(--primary); }
+    .breadcrumb .sep { color: var(--muted); }
+    .breadcrumb .current { font-weight: 600; }
+
+    .house-hero {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 16px; padding: 2rem;
+      display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem;
+    }
+    .house-hero .avatar {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: var(--primary-light); color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1.3rem;
+    }
+    .house-hero .name { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .house-hero .meta { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
+
+    .section-title {
+      font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .section-title .count {
+      background: var(--primary-light); color: var(--primary);
+      padding: 0.1rem 0.55rem; border-radius: 100px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+
+    .upload-zone {
+      background: var(--card); border: 2px dashed var(--border-strong);
+      border-radius: 16px; padding: 2.5rem 1.5rem; text-align: center;
+      cursor: pointer; transition: all 0.2s;
+      margin-bottom: 2rem;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--primary); background: var(--primary-light);
+    }
+    .upload-zone .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .upload-zone .title { font-weight: 600; margin-bottom: 0.25rem; }
+    .upload-zone .subtitle { color: var(--muted); font-size: 0.85rem; }
+    .upload-zone .filename {
+      display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem;
+      background: var(--primary-light); color: var(--primary);
+      padding: 0.4rem 0.9rem; border-radius: 100px;
+      font-size: 0.85rem; font-weight: 600;
+    }
+
+    .entry-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .entry-item {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 1rem 1.2rem;
+      display: flex; align-items: center; gap: 1rem;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .entry-item:hover {
+      border-color: var(--primary); box-shadow: 0 4px 12px rgba(61,107,94,0.08);
+    }
+    .entry-item .icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--bg-alt); display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .entry-item .info { flex: 1; min-width: 0; }
+    .entry-item .name { font-weight: 600; margin-bottom: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .entry-item .meta { color: var(--muted); font-size: 0.8rem; }
+    .entry-item .badge {
+      background: var(--primary-light); color: var(--primary);
+      padding: 0.25rem 0.65rem; border-radius: 100px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .entry-item .arrow { color: var(--muted); font-size: 1.2rem; }
+
+    /* ==================== Screen 3: Dashboard ==================== */
+    .dash-header {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 16px; padding: 1.5rem;
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
+    .dash-title { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+    .dash-meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.9rem; margin-bottom: 1.5rem;
+    }
+    .stat {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 1.1rem;
+    }
+    .stat .label { color: var(--muted); font-size: 0.78rem; font-weight: 500; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat .value { font-size: 1.6rem; font-weight: 700; color: var(--primary); letter-spacing: -0.02em; }
+    .stat .sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+
+    .table-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+    .table-card .card-header {
+      padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .table-wrap { max-height: 500px; overflow: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .data-table th {
+      background: var(--bg-alt); position: sticky; top: 0; z-index: 1;
+      padding: 0.7rem 1rem; text-align: left; font-weight: 600;
+      color: var(--text); border-bottom: 2px solid var(--border-strong);
+      white-space: nowrap;
+    }
+    .data-table td {
+      padding: 0.65rem 1rem; border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .data-table tr:hover td { background: var(--bg); }
+    .data-table .rownum { color: var(--muted); font-weight: 500; }
+
+    /* ==================== Modal ==================== */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.4); z-index: 200;
-      justify-content: center; align-items: center;
+      background: rgba(31,35,32,0.5); backdrop-filter: blur(4px);
+      z-index: 200; justify-content: center; align-items: center;
+      padding: 1rem;
     }
     .modal-overlay.open { display: flex; }
     .modal-box {
-      background: var(--card-bg); border-radius: 16px; padding: 2rem;
-      width: 90%; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      background: var(--card); border-radius: 18px; padding: 2rem;
+      width: 100%; max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      animation: modalIn 0.2s ease;
     }
-    .modal-box h4 { margin: 0 0 1.5rem; }
+    @keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .modal-box h4 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .modal-box .modal-desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.25rem; }
     .modal-box input {
-      width: 100%; padding: 0.65rem 0.75rem; border: 2px solid var(--border);
-      border-radius: 10px; font-size: 0.9rem; margin-bottom: 0.75rem; outline: none;
+      width: 100%; padding: 0.75rem 1rem; border: 1.5px solid var(--border-strong);
+      border-radius: 10px; font-family: inherit; font-size: 0.95rem;
+      outline: none; transition: border-color 0.15s;
     }
     .modal-box input:focus { border-color: var(--primary); }
-    .modal-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-    .modal-actions button { flex: 1; padding: 0.6rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
-    .btn-cancel { background: #eee; border: none; color: var(--text); }
-    .btn-confirm { background: var(--primary); border: none; color: #fff; }
+    .modal-actions { display: flex; gap: 0.6rem; margin-top: 1.25rem; }
+    .modal-actions .btn { flex: 1; }
 
-    /* Result / Dashboard */
-    .result-area { margin-top: 1.5rem; display: none; }
-    .result-area.visible { display: block; }
-
-    .stat-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
-    .stat-card {
-      flex: 1; min-width: 100px; background: var(--primary-light); border-radius: 12px;
-      padding: 1rem; text-align: center;
+    /* ==================== Alerts / Toasts ==================== */
+    .alert {
+      padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.9rem;
+      margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem;
     }
-    .stat-card .val { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
-    .stat-card .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
-
-    .data-table-wrap { max-height: 350px; overflow: auto; border: 1px solid #eee; border-radius: 10px; }
-    .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    .data-table th { background: #f5f4f0; position: sticky; top: 0; padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; border-bottom: 2px solid #ddd; }
-    .data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #eee; }
-    .data-table tr:hover td { background: #faf9f6; }
-
-    .alert { padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.9rem; margin-top: 0.75rem; }
-    .alert-success { background: var(--primary-light); color: var(--primary); }
+    .alert-success { background: var(--primary-light); color: var(--primary-dark); }
     .alert-danger { background: var(--danger-light); color: var(--danger); }
-    .alert-warning { background: #fff8e1; color: #8d6e00; }
+    .alert-warning { background: #fff4d6; color: #8d6e00; }
 
-    /* Spinner */
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--primary); color: #fff;
+      padding: 0.85rem 1.2rem; border-radius: 12px;
+      font-size: 0.9rem; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      transform: translateY(120%); transition: transform 0.25s;
+      z-index: 300;
+    }
+    .toast.show { transform: translateY(0); }
+    .toast.error { background: var(--danger); }
+
+    /* ==================== Spinner ==================== */
     #overlay {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.4); z-index: 300;
-      justify-content: center; align-items: center;
+      background: rgba(31,35,32,0.4); backdrop-filter: blur(2px);
+      z-index: 400; justify-content: center; align-items: center;
     }
     #overlay.active { display: flex; }
     .spinner-box {
-      background: var(--card-bg); border-radius: 16px; padding: 2rem 3rem;
-      text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+      background: var(--card); border-radius: 16px; padding: 2rem 2.5rem;
+      text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     }
-    .spinner { width: 40px; height: 40px; border: 4px solid #eee; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-text { font-weight: 600; font-size: 0.9rem; }
 
-    /* Synced badge */
-    .sync-badge {
-      position: fixed; bottom: 1rem; left: 1rem;
-      display: flex; align-items: center; gap: 0.4rem;
-      font-size: 0.8rem; color: var(--muted);
+    /* ==================== Responsive ==================== */
+    @media (max-width: 640px) {
+      .container { padding: 1.25rem 1rem; }
+      .page-title { font-size: 1.4rem; }
+      .house-hero { padding: 1.25rem; }
+      .house-hero .avatar { width: 52px; height: 52px; }
+      .house-hero .name { font-size: 1.2rem; }
+      .topbar { padding: 0.85rem 1rem; }
     }
-    .sync-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; }
   </style>
 </head>
 <body>
 
-<!-- Spinner overlay -->
-<div id="overlay">
-  <div class="spinner-box">
-    <div class="spinner"></div>
-    <p id="overlayText" style="margin:0;font-weight:600;">Loading…</p>
+<!-- ==================== Top bar ==================== -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">🏠</div>
+    <div>Property Data Entry</div>
   </div>
+  <div class="sync"><div class="sync-dot"></div> Synced with team</div>
 </div>
 
-<!-- Add House Modal -->
+<div class="container">
+
+  <!-- ==================== Screen 1: Households ==================== -->
+  <div id="screen-list" class="screen active">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Households</div>
+        <div class="page-subtitle">Select a house to upload data or view its history.</div>
+      </div>
+      <button class="btn btn-primary" onclick="openAddModal()">+ Add House</button>
+    </div>
+
+    <div id="householdContainer"></div>
+  </div>
+
+  <!-- ==================== Screen 2: House Detail ==================== -->
+  <div id="screen-house" class="screen">
+    <div class="breadcrumb">
+      <a onclick="showScreen('list')">Households</a>
+      <span class="sep">/</span>
+      <span class="current" id="crumbHouseName"></span>
+    </div>
+
+    <div class="house-hero">
+      <div class="avatar" id="heroAvatar"></div>
+      <div>
+        <div class="name" id="heroName"></div>
+        <div class="meta" id="heroMeta"></div>
+      </div>
+    </div>
+
+    <div class="section-title">📤 Upload New Data Entry</div>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📁</div>
+      <div class="title">Click or drag a file here</div>
+      <div class="subtitle">Supports <strong>.csv</strong> and <strong>.xlsx</strong> files</div>
+      <div id="fileNameDisplay"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="onFileSelected()">
+    <div id="uploadActions" style="display:none; margin-bottom: 2rem;">
+      <button class="btn btn-primary" onclick="submitData()">Upload & Generate Dashboard</button>
+      <button class="btn btn-ghost" onclick="cancelUpload()">Cancel</button>
+    </div>
+
+    <div class="section-title">
+      📜 Previous Entries <span class="count" id="entryCount">0</span>
+    </div>
+    <div id="entriesContainer"></div>
+  </div>
+
+  <!-- ==================== Screen 3: Dashboard ==================== -->
+  <div id="screen-dashboard" class="screen">
+    <div class="breadcrumb">
+      <a onclick="showScreen('list')">Households</a>
+      <span class="sep">/</span>
+      <a id="crumbHouseLink" onclick="reopenHouse()"></a>
+      <span class="sep">/</span>
+      <span class="current">Entry Dashboard</span>
+    </div>
+
+    <div class="dash-header">
+      <div>
+        <div class="dash-title" id="dashTitle">Data Entry Dashboard</div>
+        <div class="dash-meta" id="dashMeta"></div>
+      </div>
+      <button class="btn btn-secondary" onclick="reopenHouse()">← Back to House</button>
+    </div>
+
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <div class="table-card">
+      <div class="card-header">
+        <strong>Entry Data</strong>
+        <span class="dash-meta" id="dashRowCountLabel"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead id="dashHead"></thead>
+          <tbody id="dashBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== Add House Modal ==================== -->
 <div class="modal-overlay" id="addModal">
   <div class="modal-box">
     <h4>Add New House</h4>
-    <input type="text" id="modalHouseId" placeholder="House ID (e.g. H101)">
-    <input type="text" id="modalHouseName" placeholder="House Name">
-    <div id="modalMsg"></div>
+    <div class="modal-desc">Give this house a name to start tracking entries for it.</div>
+    <input type="text" id="newHouseName" placeholder="House name (e.g. Sanatha & Sai)" autofocus>
+    <div id="addModalMsg"></div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-confirm" onclick="confirmAddHouse()">Add House</button>
+      <button class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmAddHouse()">Create House</button>
     </div>
   </div>
 </div>
 
-<!-- Remove House Modal -->
+<!-- ==================== Confirm Remove Modal ==================== -->
 <div class="modal-overlay" id="removeModal">
   <div class="modal-box">
-    <h4>Remove a House</h4>
-    <p style="font-size:0.9rem;color:var(--muted);">Select a house to remove:</p>
-    <div id="removeList"></div>
-    <div id="removeMsg" style="margin-top:0.5rem;"></div>
+    <h4>Remove House?</h4>
+    <div class="modal-desc" id="removeDesc">This will permanently remove the house and all its entries.</div>
+    <div id="removeMsg"></div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeRemoveModal()">Close</button>
+      <button class="btn btn-secondary" onclick="closeRemoveModal()">Cancel</button>
+      <button class="btn btn-danger-outline" onclick="confirmRemove()">Remove</button>
     </div>
   </div>
 </div>
 
-<div class="portal-container">
-  <div class="card">
-
-    <!-- House selector -->
-    <div class="section-label"><span style="font-size:1.2rem;">🏠</span> House Name</div>
-
-    <div class="dropdown-wrapper" id="dropdownWrapper">
-      <div class="dropdown-trigger" id="dropdownTrigger" onclick="toggleDropdown()">
-        <span id="triggerText">Select a house…</span>
-        <span class="arrow">▲</span>
-      </div>
-      <div class="dropdown-menu-custom" id="dropdownMenu">
-        <input type="text" class="dropdown-search" id="searchInput"
-               placeholder="Search houses…" oninput="filterHouses()">
-        <div class="dropdown-list" id="dropdownList"></div>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item-custom" onclick="openAddModal()">
-          <div class="avatar add">+</div>
-          <div class="item-name" style="color:var(--primary);">Add new house</div>
-        </div>
-        <div class="dropdown-item-custom" onclick="openRemoveModal()">
-          <div class="avatar remove">−</div>
-          <div class="item-name" style="color:var(--danger);">Remove a house</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Upload section (visible after selecting a house) -->
-    <div class="upload-section" id="uploadSection">
-      <div class="section-label">📄 Upload Data Entry</div>
-      <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click();">
-        <div class="icon">📁</div>
-        <div class="label">Click or drag a <strong>.csv</strong> or <strong>.xlsx</strong> file here</div>
-        <div class="filename" id="fileName"></div>
-      </div>
-      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="onFileSelected()">
-      <button class="btn-submit" id="submitBtn" onclick="submitData()" disabled>Upload & Process</button>
-    </div>
-
-    <!-- Result / Dashboard -->
-    <div class="result-area" id="resultArea"></div>
-
+<!-- ==================== Spinner overlay ==================== -->
+<div id="overlay">
+  <div class="spinner-box">
+    <div class="spinner"></div>
+    <div class="spinner-text" id="overlayText">Loading…</div>
   </div>
 </div>
 
-<div class="sync-badge"><div class="sync-dot"></div> Synced with team</div>
+<!-- ==================== Toast ==================== -->
+<div id="toast" class="toast"></div>
 
 <script>
-  var households = [];
-  var selectedHouse = null;
-  var dropdownOpen = false;
+  // ============================================================
+  // State
+  // ============================================================
+  var state = {
+    households: [],
+    currentHouse: null,
+    entries: [],
+    pendingFile: null,
+    removeTarget: null
+  };
 
-  // Load households on page load
+  // ============================================================
+  // Init
+  // ============================================================
   window.addEventListener('DOMContentLoaded', function() { loadHouseholds(); });
 
-  // Close dropdown when clicking outside
-  document.addEventListener('click', function(e) {
-    var wrapper = document.getElementById('dropdownWrapper');
-    if (!wrapper.contains(e.target) && dropdownOpen) closeDropdown();
-  });
-
-  // -----------------------------------------------------------------------
-  // Dropdown logic
-  // -----------------------------------------------------------------------
-  function toggleDropdown() {
-    dropdownOpen ? closeDropdown() : openDropdown();
-  }
-  function openDropdown() {
-    dropdownOpen = true;
-    document.getElementById('dropdownTrigger').classList.add('open');
-    document.getElementById('dropdownMenu').classList.add('open');
-    document.getElementById('searchInput').value = '';
-    filterHouses();
-    setTimeout(function() { document.getElementById('searchInput').focus(); }, 50);
-  }
-  function closeDropdown() {
-    dropdownOpen = false;
-    document.getElementById('dropdownTrigger').classList.remove('open');
-    document.getElementById('dropdownMenu').classList.remove('open');
+  // ============================================================
+  // Screen navigation
+  // ============================================================
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(function(el) { el.classList.remove('active'); });
+    document.getElementById('screen-' + name).classList.add('active');
+    window.scrollTo(0, 0);
   }
 
-  // -----------------------------------------------------------------------
-  // Load and render households
-  // -----------------------------------------------------------------------
+  // ============================================================
+  // Screen 1 — Households list
+  // ============================================================
   function loadHouseholds() {
-    showOverlay(true, 'Loading houses…');
+    showOverlay(true, 'Loading households…');
     google.script.run
       .withSuccessHandler(function(list) {
         showOverlay(false);
-        households = list || [];
-        renderHouseList(households);
+        state.households = list || [];
+        renderHouseholds();
       })
       .withFailureHandler(function(err) {
         showOverlay(false);
-        households = [];
-        renderHouseList([]);
+        renderHouseholdsError(err.message);
       })
       .getHouseholds();
   }
 
-  function renderHouseList(list) {
-    var container = document.getElementById('dropdownList');
-    if (!list.length) {
-      container.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--muted);font-size:0.9rem;">No houses yet. Add one below.</div>';
+  function renderHouseholds() {
+    var container = document.getElementById('householdContainer');
+    if (!state.households.length) {
+      container.innerHTML = '<div class="empty-state">' +
+        '<div class="icon">🏘️</div>' +
+        '<div class="title">No households yet</div>' +
+        '<div class="text">Create your first house to get started.</div>' +
+        '<button class="btn btn-primary" onclick="openAddModal()">+ Add Your First House</button>' +
+        '</div>';
       return;
     }
-    var html = '';
-    list.forEach(function(h) {
-      var initials = getInitials(h.name);
-      html += '<div class="dropdown-item-custom house-option" data-name="' + escapeAttr(h.name) + '" onclick="selectHouse(\'' + escapeAttr(h.id) + '\',\'' + escapeAttr(h.name) + '\')">' +
-        '<div class="avatar house">' + escapeHtml(initials) + '</div>' +
-        '<div class="item-name">' + escapeHtml(h.name) + '</div></div>';
+    var html = '<div class="house-grid">';
+    state.households.forEach(function(h) {
+      html += '<div class="house-card" onclick="openHouse(\'' + escapeAttr(h.id) + '\')">' +
+        '<button class="remove-btn" onclick="event.stopPropagation();openRemoveModal(\'' + escapeAttr(h.id) + '\',\'' + escapeAttr(h.name) + '\')" title="Remove">×</button>' +
+        '<div class="avatar">' + escapeHtml(getInitials(h.name)) + '</div>' +
+        '<div class="info">' +
+          '<div class="name">' + escapeHtml(h.name) + '</div>' +
+          '<div class="date">Added ' + escapeHtml(h.createdAt || '—') + '</div>' +
+        '</div>' +
+      '</div>';
     });
+    html += '<div class="add-house-card" onclick="openAddModal()">+ Add New House</div>';
+    html += '</div>';
     container.innerHTML = html;
   }
 
-  function filterHouses() {
-    var query = document.getElementById('searchInput').value.toLowerCase();
-    var items = document.querySelectorAll('.house-option');
-    items.forEach(function(el) {
-      var name = (el.getAttribute('data-name') || '').toLowerCase();
-      el.style.display = name.indexOf(query) >= 0 ? '' : 'none';
-    });
+  function renderHouseholdsError(msg) {
+    document.getElementById('householdContainer').innerHTML =
+      '<div class="alert alert-danger">Could not load households: ' + escapeHtml(msg) + '</div>';
   }
 
-  function selectHouse(id, name) {
-    selectedHouse = { id: id, name: name };
-    document.getElementById('triggerText').innerHTML = '<span class="selected-text">' + escapeHtml(name) + '</span>';
-    closeDropdown();
-    document.getElementById('uploadSection').classList.add('visible');
-    document.getElementById('resultArea').classList.remove('visible');
-    document.getElementById('resultArea').innerHTML = '';
+  // ============================================================
+  // Screen 2 — House detail
+  // ============================================================
+  function openHouse(houseId) {
+    var house = state.households.filter(function(h) { return h.id === houseId; })[0];
+    if (!house) return;
+    state.currentHouse = house;
+    state.pendingFile = null;
+
+    document.getElementById('crumbHouseName').textContent = house.name;
+    document.getElementById('crumbHouseLink').textContent = house.name;
+    document.getElementById('heroName').textContent = house.name;
+    document.getElementById('heroAvatar').textContent = getInitials(house.name);
+    document.getElementById('heroMeta').textContent = 'Added ' + (house.createdAt || '—');
+
+    // Reset upload UI
     document.getElementById('fileInput').value = '';
-    document.getElementById('fileName').textContent = '';
-    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('fileNameDisplay').innerHTML = '';
+    document.getElementById('uploadActions').style.display = 'none';
+
+    showScreen('house');
+    loadEntries();
   }
 
-  function getInitials(name) {
-    var parts = name.split(/[\s&]+/).filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.substring(0, 2).toUpperCase();
+  function loadEntries() {
+    var container = document.getElementById('entriesContainer');
+    container.innerHTML = '<div class="empty-state" style="padding:2rem;"><div class="spinner" style="width:28px;height:28px;border-width:3px;"></div></div>';
+
+    google.script.run
+      .withSuccessHandler(function(entries) {
+        state.entries = entries || [];
+        renderEntries();
+      })
+      .withFailureHandler(function(err) {
+        container.innerHTML = '<div class="alert alert-danger">Could not load entries: ' + escapeHtml(err.message) + '</div>';
+      })
+      .getEntriesForHouse(state.currentHouse.id);
   }
 
-  // -----------------------------------------------------------------------
-  // Add house modal
-  // -----------------------------------------------------------------------
-  function openAddModal() {
-    closeDropdown();
-    document.getElementById('modalHouseId').value = '';
-    document.getElementById('modalHouseName').value = '';
-    document.getElementById('modalHouseAddr').value = '';
-    document.getElementById('modalMsg').innerHTML = '';
-    document.getElementById('addModal').classList.add('open');
-  }
-  function closeModal() {
-    document.getElementById('addModal').classList.remove('open');
-  }
-  function confirmAddHouse() {
-    var id = document.getElementById('modalHouseId').value.trim();
-    var name = document.getElementById('modalHouseName').value.trim();
-    var addr = '';
-    if (!id || !name) {
-      document.getElementById('modalMsg').innerHTML = '<div class="alert alert-warning">House ID and Name are required.</div>';
+  function renderEntries() {
+    var container = document.getElementById('entriesContainer');
+    document.getElementById('entryCount').textContent = state.entries.length;
+
+    if (!state.entries.length) {
+      container.innerHTML = '<div class="empty-state" style="padding:2.5rem 1rem;">' +
+        '<div class="icon">📋</div>' +
+        '<div class="title">No entries yet</div>' +
+        '<div class="text">Upload a data file above to create your first entry.</div>' +
+        '</div>';
       return;
     }
-    showOverlay(true, 'Adding house…');
-    google.script.run
-      .withSuccessHandler(function(result) {
-        showOverlay(false);
-        if (result.success) {
-          closeModal();
-          loadHouseholds();
-        } else {
-          document.getElementById('modalMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(result.message) + '</div>';
-        }
-      })
-      .withFailureHandler(function(err) {
-        showOverlay(false);
-        document.getElementById('modalMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>';
-      })
-      .addHousehold(id, name, addr);
+
+    var html = '<div class="entry-list">';
+    state.entries.forEach(function(e) {
+      html += '<div class="entry-item" onclick="viewEntry(\'' + escapeAttr(e.id) + '\')">' +
+        '<div class="icon">📊</div>' +
+        '<div class="info">' +
+          '<div class="name">' + escapeHtml(e.fileName || 'Untitled entry') + '</div>' +
+          '<div class="meta">Uploaded ' + escapeHtml(e.uploadedAt) + '</div>' +
+        '</div>' +
+        '<div class="badge">' + e.rowCount + ' rows</div>' +
+        '<div class="arrow">›</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
   }
 
-  // -----------------------------------------------------------------------
-  // Remove house modal
-  // -----------------------------------------------------------------------
-  function openRemoveModal() {
-    closeDropdown();
-    var container = document.getElementById('removeList');
-    if (!households.length) {
-      container.innerHTML = '<p style="color:var(--muted);">No houses to remove.</p>';
-    } else {
-      var html = '';
-      households.forEach(function(h) {
-        html += '<div class="dropdown-item-custom" style="border-radius:8px;" onclick="confirmRemoveHouse(\'' + escapeAttr(h.id) + '\',\'' + escapeAttr(h.name) + '\')">' +
-          '<div class="avatar remove" style="font-size:0.8rem;">✕</div>' +
-          '<div class="item-name">' + escapeHtml(h.name) + '</div></div>';
-      });
-      container.innerHTML = html;
-    }
-    document.getElementById('removeMsg').innerHTML = '';
-    document.getElementById('removeModal').classList.add('open');
-  }
-  function closeRemoveModal() {
-    document.getElementById('removeModal').classList.remove('open');
-  }
-  function confirmRemoveHouse(id, name) {
-    if (!confirm('Remove "' + name + '"? This only removes it from the household list, not its data entries.')) return;
-    showOverlay(true, 'Removing…');
-    google.script.run
-      .withSuccessHandler(function(result) {
-        showOverlay(false);
-        if (result.success) {
-          if (selectedHouse && selectedHouse.id === id) {
-            selectedHouse = null;
-            document.getElementById('triggerText').textContent = 'Select a house…';
-            document.getElementById('uploadSection').classList.remove('visible');
-          }
-          closeRemoveModal();
-          loadHouseholds();
-        } else {
-          document.getElementById('removeMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(result.message) + '</div>';
-        }
-      })
-      .withFailureHandler(function(err) {
-        showOverlay(false);
-        document.getElementById('removeMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>';
-      })
-      .removeHousehold(id);
-  }
-
-  // -----------------------------------------------------------------------
-  // File handling
-  // -----------------------------------------------------------------------
-  var fileDrop = document.getElementById('fileDrop');
-  fileDrop.addEventListener('dragover', function(e) { e.preventDefault(); fileDrop.classList.add('dragover'); });
-  fileDrop.addEventListener('dragleave', function() { fileDrop.classList.remove('dragover'); });
-  fileDrop.addEventListener('drop', function(e) {
-    e.preventDefault(); fileDrop.classList.remove('dragover');
+  // Upload zone drag/drop
+  var uploadZone = document.getElementById('uploadZone');
+  uploadZone.addEventListener('dragover', function(e) { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', function() { uploadZone.classList.remove('dragover'); });
+  uploadZone.addEventListener('drop', function(e) {
+    e.preventDefault(); uploadZone.classList.remove('dragover');
     if (e.dataTransfer.files.length) {
       document.getElementById('fileInput').files = e.dataTransfer.files;
       onFileSelected();
@@ -454,116 +624,239 @@
 
   function onFileSelected() {
     var file = document.getElementById('fileInput').files[0];
-    if (file) {
-      document.getElementById('fileName').textContent = file.name;
-      document.getElementById('submitBtn').disabled = false;
-    }
+    if (!file) return;
+    state.pendingFile = file;
+    document.getElementById('fileNameDisplay').innerHTML =
+      '<div class="filename">📄 ' + escapeHtml(file.name) + '</div>';
+    document.getElementById('uploadActions').style.display = '';
   }
 
-  // -----------------------------------------------------------------------
-  // Submit data
-  // -----------------------------------------------------------------------
+  function cancelUpload() {
+    state.pendingFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileNameDisplay').innerHTML = '';
+    document.getElementById('uploadActions').style.display = 'none';
+  }
+
   function submitData() {
-    if (!selectedHouse) return;
-    var fileInput = document.getElementById('fileInput');
-    if (!fileInput.files.length) return;
-
+    if (!state.pendingFile || !state.currentHouse) return;
     showOverlay(true, 'Processing data file…');
-    document.getElementById('submitBtn').disabled = true;
 
-    readFileAsBase64(fileInput.files[0]).then(function(dataFileObj) {
+    readFileAsCsv(state.pendingFile).then(function(dataFileObj) {
       google.script.run
-        .withSuccessHandler(onUploadSuccess)
-        .withFailureHandler(onUploadFailure)
-        .processDataEntry(selectedHouse.id, dataFileObj);
+        .withSuccessHandler(function(result) {
+          showOverlay(false);
+          if (!result.success) {
+            showToast(result.message, 'error');
+            return;
+          }
+          showToast('Data uploaded successfully');
+          renderDashboard(result);
+          showScreen('dashboard');
+        })
+        .withFailureHandler(function(err) {
+          showOverlay(false);
+          showToast('Server error: ' + err.message, 'error');
+        })
+        .processDataEntry(state.currentHouse.id, dataFileObj);
     }).catch(function(err) {
       showOverlay(false);
-      showAlert('danger', 'Failed to read file: ' + err.message);
-      document.getElementById('submitBtn').disabled = false;
+      showToast('Failed to read file: ' + err.message, 'error');
     });
   }
 
-  function onUploadSuccess(result) {
-    showOverlay(false);
-    document.getElementById('submitBtn').disabled = false;
+  function reopenHouse() {
+    if (state.currentHouse) openHouse(state.currentHouse.id);
+    else showScreen('list');
+  }
 
-    if (!result.success) {
-      showAlert('danger', result.message);
-      return;
-    }
+  // ============================================================
+  // Screen 3 — Dashboard
+  // ============================================================
+  function viewEntry(entryId) {
+    showOverlay(true, 'Loading dashboard…');
+    google.script.run
+      .withSuccessHandler(function(result) {
+        showOverlay(false);
+        if (!result.success) {
+          showToast(result.message, 'error');
+          return;
+        }
+        renderDashboard(result);
+        showScreen('dashboard');
+      })
+      .withFailureHandler(function(err) {
+        showOverlay(false);
+        showToast('Error: ' + err.message, 'error');
+      })
+      .getEntryData(entryId);
+  }
 
-    var headers = result.headers;
-    var data = result.data;
+  function renderDashboard(result) {
+    var meta = result.meta;
+    var headers = result.headers || [];
+    var data = result.data || [];
 
-    // Build stats
-    var statsHtml = '<div class="stat-row">';
-    statsHtml += '<div class="stat-card"><div class="val">' + data.length + '</div><div class="lbl">Rows</div></div>';
+    document.getElementById('dashTitle').textContent = meta.fileName || 'Data Entry';
+    document.getElementById('dashMeta').textContent =
+      (state.currentHouse ? state.currentHouse.name + ' · ' : '') +
+      'Uploaded ' + meta.uploadedAt;
+    document.getElementById('dashRowCountLabel').textContent = data.length + ' rows';
 
+    // Stats
+    var statsHtml = '';
+    statsHtml += statCard('Rows uploaded', data.length.toLocaleString(), '');
+    statsHtml += statCard('Columns', headers.length.toLocaleString(), '');
+
+    // Detect numeric columns and show up to 3 sums
     var numCols = [];
     headers.forEach(function(h) {
-      var sum = 0, ok = true;
+      var sum = 0, ok = true, count = 0;
       for (var i = 0; i < data.length; i++) {
-        var v = parseFloat(String(data[i][h]).replace(/[,$]/g, ''));
+        var raw = data[i][h];
+        if (raw === '' || raw === null || raw === undefined) continue;
+        var v = parseFloat(String(raw).replace(/[,$]/g, ''));
         if (isNaN(v)) { ok = false; break; }
-        sum += v;
+        sum += v; count++;
       }
-      if (ok && data.length > 0) numCols.push({ header: h, sum: sum });
+      if (ok && count > 0) numCols.push({ header: h, sum: sum, count: count });
     });
     numCols.slice(0, 3).forEach(function(c) {
       var v = c.sum % 1 === 0 ? c.sum.toLocaleString() : c.sum.toLocaleString(undefined, { maximumFractionDigits: 2 });
-      statsHtml += '<div class="stat-card"><div class="val">' + v + '</div><div class="lbl">' + escapeHtml(c.header) + '</div></div>';
+      statsHtml += statCard('Total ' + c.header, v, c.count + ' values');
     });
-    statsHtml += '</div>';
+    document.getElementById('statsGrid').innerHTML = statsHtml;
 
-    // Build table
-    var tableHtml = '<div class="data-table-wrap"><table class="data-table"><thead><tr><th>#</th>';
-    headers.forEach(function(h) { tableHtml += '<th>' + escapeHtml(h) + '</th>'; });
-    tableHtml += '</tr></thead><tbody>';
-    data.forEach(function(row, i) {
-      tableHtml += '<tr><td>' + (i + 1) + '</td>';
-      headers.forEach(function(h) { tableHtml += '<td>' + escapeHtml(String(row[h] || '')) + '</td>'; });
-      tableHtml += '</tr>';
-    });
-    tableHtml += '</tbody></table></div>';
+    // Table
+    var thHtml = '<tr><th>#</th>';
+    headers.forEach(function(h) { thHtml += '<th>' + escapeHtml(h) + '</th>'; });
+    thHtml += '</tr>';
+    document.getElementById('dashHead').innerHTML = thHtml;
 
-    var area = document.getElementById('resultArea');
-    area.innerHTML = '<div class="alert alert-success">' + escapeHtml(result.message) + ' — ' + result.uploadDate + '</div>' + statsHtml + tableHtml;
-    area.classList.add('visible');
+    var tbHtml = '';
+    if (!data.length) {
+      tbHtml = '<tr><td colspan="' + (headers.length + 1) + '" style="text-align:center;padding:2rem;color:var(--muted);">No data rows.</td></tr>';
+    } else {
+      data.forEach(function(row, idx) {
+        tbHtml += '<tr><td class="rownum">' + (idx + 1) + '</td>';
+        headers.forEach(function(h) {
+          var v = row[h];
+          tbHtml += '<td>' + escapeHtml(v === undefined || v === null ? '' : String(v)) + '</td>';
+        });
+        tbHtml += '</tr>';
+      });
+    }
+    document.getElementById('dashBody').innerHTML = tbHtml;
   }
 
-  function onUploadFailure(err) {
-    showOverlay(false);
-    document.getElementById('submitBtn').disabled = false;
-    showAlert('danger', 'Server error: ' + err.message);
+  function statCard(label, value, sub) {
+    return '<div class="stat">' +
+      '<div class="label">' + escapeHtml(label) + '</div>' +
+      '<div class="value">' + escapeHtml(value) + '</div>' +
+      (sub ? '<div class="sub">' + escapeHtml(sub) + '</div>' : '') +
+    '</div>';
   }
 
-  // -----------------------------------------------------------------------
+  // ============================================================
+  // Add / Remove house modals
+  // ============================================================
+  function openAddModal() {
+    document.getElementById('newHouseName').value = '';
+    document.getElementById('addModalMsg').innerHTML = '';
+    document.getElementById('addModal').classList.add('open');
+    setTimeout(function() { document.getElementById('newHouseName').focus(); }, 50);
+  }
+  function closeAddModal() { document.getElementById('addModal').classList.remove('open'); }
+
+  document.getElementById('newHouseName').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') confirmAddHouse();
+  });
+
+  function confirmAddHouse() {
+    var name = document.getElementById('newHouseName').value.trim();
+    var msg = document.getElementById('addModalMsg');
+    if (!name) {
+      msg.innerHTML = '<div class="alert alert-warning">Please enter a name.</div>';
+      return;
+    }
+    showOverlay(true, 'Creating house…');
+    google.script.run
+      .withSuccessHandler(function(result) {
+        showOverlay(false);
+        if (!result.success) {
+          msg.innerHTML = '<div class="alert alert-danger">' + escapeHtml(result.message) + '</div>';
+          return;
+        }
+        closeAddModal();
+        showToast('House "' + name + '" created');
+        loadHouseholds();
+      })
+      .withFailureHandler(function(err) {
+        showOverlay(false);
+        msg.innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>';
+      })
+      .addHousehold(name);
+  }
+
+  function openRemoveModal(id, name) {
+    state.removeTarget = { id: id, name: name };
+    document.getElementById('removeDesc').innerHTML =
+      'Are you sure you want to remove <strong>' + escapeHtml(name) + '</strong>? This will delete the house and all its uploaded entries. This cannot be undone.';
+    document.getElementById('removeMsg').innerHTML = '';
+    document.getElementById('removeModal').classList.add('open');
+  }
+  function closeRemoveModal() {
+    state.removeTarget = null;
+    document.getElementById('removeModal').classList.remove('open');
+  }
+  function confirmRemove() {
+    if (!state.removeTarget) return;
+    var target = state.removeTarget;
+    showOverlay(true, 'Removing house…');
+    google.script.run
+      .withSuccessHandler(function(result) {
+        showOverlay(false);
+        if (!result.success) {
+          document.getElementById('removeMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(result.message) + '</div>';
+          return;
+        }
+        closeRemoveModal();
+        showToast('Removed "' + target.name + '"');
+        loadHouseholds();
+      })
+      .withFailureHandler(function(err) {
+        showOverlay(false);
+        document.getElementById('removeMsg').innerHTML = '<div class="alert alert-danger">' + escapeHtml(err.message) + '</div>';
+      })
+      .removeHousehold(target.id);
+  }
+
+  // ============================================================
   // Utilities
-  // -----------------------------------------------------------------------
-  function readFileAsBase64(file) {
+  // ============================================================
+  function readFileAsCsv(file) {
     return new Promise(function(resolve, reject) {
       var reader = new FileReader();
       reader.onerror = function() { reject(reader.error); };
-
       var name = file.name.toLowerCase();
       if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
-        // Convert Excel to CSV on client side using SheetJS
         reader.onload = function(e) {
           try {
             var data = new Uint8Array(e.target.result);
-            var workbook = XLSX.read(data, { type: 'array' });
-            var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            var csv = XLSX.utils.sheet_to_csv(firstSheet);
+            var wb = XLSX.read(data, { type: 'array' });
+            var sheet = wb.Sheets[wb.SheetNames[0]];
+            var csv = XLSX.utils.sheet_to_csv(sheet);
             var base64 = btoa(unescape(encodeURIComponent(csv)));
-            resolve({ name: file.name.replace(/\.xlsx?$/i, '.csv'), mimeType: 'text/csv', base64: base64 });
+            resolve({ name: file.name, mimeType: 'text/csv', base64: base64 });
           } catch (err) {
-            reject(new Error('Failed to parse Excel file: ' + err.message));
+            reject(new Error('Excel parse failed: ' + err.message));
           }
         };
         reader.readAsArrayBuffer(file);
       } else {
-        // CSV — send as-is
-        reader.onload = function() { resolve({ name: file.name, mimeType: file.type || 'text/csv', base64: reader.result.split(',')[1] }); };
+        reader.onload = function() {
+          resolve({ name: file.name, mimeType: 'text/csv', base64: reader.result.split(',')[1] });
+        };
         reader.readAsDataURL(file);
       }
     });
@@ -574,20 +867,30 @@
     document.getElementById('overlay').classList.toggle('active', on);
   }
 
-  function showAlert(type, msg) {
-    var area = document.getElementById('resultArea');
-    area.innerHTML = '<div class="alert alert-' + type + '">' + escapeHtml(msg) + '</div>';
-    area.classList.add('visible');
+  var toastTimeout;
+  function showToast(msg, type) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type === 'error' ? ' error' : '');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(function() { el.classList.remove('show'); }, 3000);
+  }
+
+  function getInitials(name) {
+    var parts = String(name || '').split(/[\s&]+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return String(name || '').substring(0, 2).toUpperCase();
   }
 
   function escapeHtml(s) {
     var d = document.createElement('div');
-    d.appendChild(document.createTextNode(s));
+    d.appendChild(document.createTextNode(s === undefined || s === null ? '' : s));
     return d.innerHTML;
   }
 
   function escapeAttr(s) {
-    return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return String(s === undefined || s === null ? '' : s)
+      .replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   }
 </script>
 

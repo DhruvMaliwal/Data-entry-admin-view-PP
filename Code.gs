@@ -235,20 +235,13 @@ function getEntriesForHouse(houseId) {
 }
 
 // ---------------------------------------------------------------------------
-// parseDataFile — detects CSV vs Excel and returns an array of row objects
+// parseDataFile — parses the data file (always CSV — Excel is converted
+// to CSV on the client side by SheetJS before being sent here)
 // ---------------------------------------------------------------------------
 function parseDataFile(dataFile) {
   var bytes = Utilities.base64Decode(dataFile.base64);
   var blob = Utilities.newBlob(bytes, dataFile.mimeType, dataFile.name);
-  var name = dataFile.name.toLowerCase();
-
-  if (name.endsWith('.csv')) {
-    return parseCsv(blob);
-  } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
-    return parseExcel(blob);
-  } else {
-    throw new Error('Unsupported file type. Please upload .csv or .xlsx');
-  }
+  return parseCsv(blob);
 }
 
 // ---------------------------------------------------------------------------
@@ -267,34 +260,6 @@ function parseCsv(blob) {
     var hasData = false;
     for (var c = 0; c < headers.length; c++) {
       var val = (parsed[i][c] || '').trim();
-      obj[headers[c]] = val;
-      if (val) hasData = true;
-    }
-    if (hasData) rows.push(obj);
-  }
-  return rows;
-}
-
-// ---------------------------------------------------------------------------
-// parseExcel — converts Excel to Google Sheet temporarily, reads data, deletes temp
-// ---------------------------------------------------------------------------
-function parseExcel(blob) {
-  var resource = { title: 'TempUpload_' + new Date().getTime(), mimeType: MimeType.GOOGLE_SHEETS };
-  var tempFile = Drive.Files.insert(resource, blob, { convert: true });
-  var tempSheet = SpreadsheetApp.openById(tempFile.id);
-  var data = tempSheet.getSheets()[0].getDataRange().getValues();
-  DriveApp.getFileById(tempFile.id).setTrashed(true);
-
-  if (data.length < 2) return [];
-
-  var headers = data[0].map(function(h) { return String(h).trim(); });
-  var rows = [];
-
-  for (var i = 1; i < data.length; i++) {
-    var obj = {};
-    var hasData = false;
-    for (var c = 0; c < headers.length; c++) {
-      var val = String(data[i][c] || '').trim();
       obj[headers[c]] = val;
       if (val) hasData = true;
     }
